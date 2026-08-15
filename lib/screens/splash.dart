@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
-import '../widgets.dart';
 import 'home.dart';
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -58,7 +57,28 @@ class _SplashScreenState extends State<SplashScreen>
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          BrandMark(size: 200, onCream: true),
+                          Container(
+                            width: 210,
+                            height: 210,
+                            decoration: BoxDecoration(
+                              color: p.isDark ? const Color(0xFFF7F6F1) : Colors.transparent,
+                              borderRadius: BorderRadius.circular(46),
+                              boxShadow: p.isDark
+                                  ? [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(alpha: 0.3),
+                                        blurRadius: 20,
+                                        offset: const Offset(0, 10),
+                                      )
+                                    ]
+                                  : null,
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: Image.asset(
+                              'assets/icon.png',
+                              fit: BoxFit.cover,
+                            ),
+                          ),
                           const SizedBox(height: 24),
                           Text(
                             'Antropometría pediátrica clínica\nOMS · Colombia',
