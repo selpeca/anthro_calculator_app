@@ -1,4 +1,3 @@
-import 'dart:ui' show FontFeature;
 import 'package:flutter/material.dart';
 
 /// Clinical status used across the app for "semaforización" (traffic-light
