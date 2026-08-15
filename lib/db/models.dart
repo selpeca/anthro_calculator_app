@@ -50,6 +50,7 @@ class SavedMeasurement {
     required this.overall,
     required this.overallLabel,
     required this.createdAt,
+    this.updatedAt,
     required this.indicators,
   });
 
@@ -73,6 +74,10 @@ class SavedMeasurement {
   final ClinicalStatus overall;
   final String overallLabel;
   final DateTime createdAt;
+
+  /// Última vez que se re-persistió la medición (`null` en registros creados
+  /// antes de la columna `updated_at`).
+  final DateTime? updatedAt;
   final List<SavedIndicator> indicators;
 }
 

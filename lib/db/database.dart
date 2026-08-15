@@ -22,7 +22,8 @@ import '../theme.dart' show ClinicalStatus;
 import 'models.dart';
 
 /// Versión del esquema; subir con las migraciones en `onUpgrade`.
-const int _schemaVersion = 1;
+/// v2: columna `measurements.updated_at` para el flujo de "Actualizar".
+const int _schemaVersion = 2;
 
 class AnthroDatabase {
   AnthroDatabase._();
@@ -50,12 +51,24 @@ class AnthroDatabase {
 
   Future<Database> _open() async {
     final path = overridePath ?? p.join(await _defaultDir(), 'anthro.db');
-    return openDatabase(path, version: _schemaVersion, onCreate: _onCreate);
+    return openDatabase(
+      path,
+      version: _schemaVersion,
+      onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
+    );
   }
 
   Future<String> _defaultDir() async {
     final docs = await getApplicationDocumentsDirectory();
     return docs.path;
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute(
+          'ALTER TABLE measurements ADD COLUMN updated_at TEXT');
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -86,7 +99,8 @@ class AnthroDatabase {
         age_rem_days INTEGER NOT NULL,
         overall TEXT NOT NULL,
         overall_label TEXT NOT NULL,
-        created_at TEXT NOT NULL
+        created_at TEXT NOT NULL,
+        updated_at TEXT
       )
     ''');
     await db.execute('''
@@ -111,33 +125,23 @@ class AnthroDatabase {
 
   /// Guarda una medición asociada a un paciente por nombre (get-or-create).
   ///
-  /// Reutiliza el paciente cuando ya existe un registro con el mismo nombre
-  /// (insensible a mayúsculas), acumulando así su historial.
+  /// Si se pasa [patientId] se usa ese paciente directamente (ya existía y el
+  /// usuario la seleccionó al buscar). En caso contrario se reutiliza el
+  /// paciente cuando ya existe un registro con el mismo nombre (insensible a
+  /// mayúsculas), acumulando así su historial.
   Future<int> saveMeasurement({
     required String patientName,
     required AnthroInput input,
     required AnthroResult result,
+    int? patientId,
   }) async {
     final db = await database;
     final name = patientName.trim();
     return db.transaction((txn) async {
-      final existing = await txn.query(
-        'patients',
-        columns: ['id'],
-        where: 'name = ?',
-        whereArgs: [name],
-        limit: 1,
-      );
-      final patientId = existing.isNotEmpty
-          ? existing.first['id'] as int
-          : await txn.insert('patients', {
-              'name': name,
-              'created_at': _isoNow(),
-            });
-
+      final pid = patientId ?? await _resolvePatientId(txn, name);
       final now = _isoNow();
       final measurementId = await txn.insert('measurements', {
-        'patient_id': patientId,
+        'patient_id': pid,
         'birth_date': _isoDate(input.birthDate),
         'measurement_date': _isoDate(input.measurementDate),
         'sex': input.sex.name,
@@ -157,22 +161,118 @@ class AnthroDatabase {
         'created_at': now,
       });
 
-      for (var i = 0; i < result.indicators.length; i++) {
-        final ind = result.indicators[i];
-        await txn.insert('indicators', {
-          'measurement_id': measurementId,
-          'position': i,
-          'name': ind.name,
-          'z': ind.z,
-          'percentile': ind.percentile,
-          'percentile_label': ind.percentileLabel,
-          'classification': ind.classification,
-          'status': ind.status.name,
-          'deficit_note': ind.deficitNote,
-        });
-      }
+      await _insertIndicators(txn, measurementId, result);
       return measurementId;
     });
+  }
+
+  /// Actualiza una medición ya guardada (flujo del botón "Actualizar").
+  ///
+  /// Re-persiste los datos del cálculo y sus indicadores. Si el paciente
+  /// elegido es distinto al actual, la medición se reasigna (get-or-create
+  /// por nombre cuando [patientId] es `null`).
+  Future<void> updateMeasurement({
+    required int measurementId,
+    required String patientName,
+    required AnthroInput input,
+    required AnthroResult result,
+    int? patientId,
+  }) async {
+    final db = await database;
+    final name = patientName.trim();
+    await db.transaction((txn) async {
+      final pid = patientId ?? await _resolvePatientId(txn, name);
+      await txn.update(
+        'measurements',
+        {
+          'patient_id': pid,
+          'birth_date': _isoDate(input.birthDate),
+          'measurement_date': _isoDate(input.measurementDate),
+          'sex': input.sex.name,
+          'position': input.position.name,
+          'standard_id': input.standardId,
+          'standard_label': result.standardLabel,
+          'weight_kg': input.weightKg,
+          'stature_cm': input.statureCm,
+          'head_circumference_cm': result.headCircumferenceCm,
+          'bmi': result.bmi,
+          'age_days': result.age.days,
+          'age_years': result.age.years,
+          'age_months': result.age.months,
+          'age_rem_days': result.age.remDays,
+          'overall': result.overall.name,
+          'overall_label': result.overallLabel,
+          'updated_at': _isoNow(),
+        },
+        where: 'id = ?',
+        whereArgs: [measurementId],
+      );
+      await txn.delete('indicators',
+          where: 'measurement_id = ?', whereArgs: [measurementId]);
+      await _insertIndicators(txn, measurementId, result);
+    });
+  }
+
+  /// Id del paciente existente con ese nombre, o crea uno nuevo.
+  Future<int> _resolvePatientId(DatabaseExecutor txn, String name) async {
+    final existing = await txn.query(
+      'patients',
+      columns: ['id'],
+      where: 'name = ?',
+      whereArgs: [name],
+      limit: 1,
+    );
+    return existing.isNotEmpty
+        ? existing.first['id'] as int
+        : txn.insert('patients', {
+            'name': name,
+            'created_at': _isoNow(),
+          });
+  }
+
+  Future<void> _insertIndicators(
+      DatabaseExecutor txn, int measurementId, AnthroResult result) async {
+    for (var i = 0; i < result.indicators.length; i++) {
+      final ind = result.indicators[i];
+      await txn.insert('indicators', {
+        'measurement_id': measurementId,
+        'position': i,
+        'name': ind.name,
+        'z': ind.z,
+        'percentile': ind.percentile,
+        'percentile_label': ind.percentileLabel,
+        'classification': ind.classification,
+        'status': ind.status.name,
+        'deficit_note': ind.deficitNote,
+      });
+    }
+  }
+
+  /// Pacientes con mediciones cuyo nombre contiene [query] (insensible a
+  /// mayúsculas, tolerante a acentos). Devuelve los que ya tienen historial,
+  /// ordenados por actividad reciente.
+  Future<List<SavedPatient>> searchPatients(String query) async {
+    final q = _normalize(query);
+    if (q.isEmpty) return const [];
+    final all = await listPatients();
+    return [
+      for (final p in all)
+        if (p.measurementCount > 0 && _normalize(p.name).contains(q)) p,
+    ];
+  }
+
+  /// Minúsculas sin acentos para que "sofia" encuentre "Sofía" y viceversa.
+  static String _normalize(String s) {
+    const from = 'áéíóúüñ';
+    const to = 'aeiouun';
+    final out = s.toLowerCase();
+    final sb = StringBuffer();
+    for (var i = 0; i < out.length; i++) {
+      final c = out[i];
+      final idx = from.indexOf(c);
+      sb.write(idx >= 0 ? to[idx] : c);
+    }
+    return sb.toString();
   }
 
   /// Pacientes con su última medición, ordenados por actividad reciente
@@ -290,6 +390,9 @@ class AnthroDatabase {
       overall: _statusFromName(r['overall'] as String),
       overallLabel: r['overall_label'] as String,
       createdAt: DateTime.parse(r['created_at'] as String),
+      updatedAt: (r['updated_at'] as String?) != null
+          ? DateTime.parse(r['updated_at'] as String)
+          : null,
       indicators: ind,
     );
   }

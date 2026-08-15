@@ -190,6 +190,101 @@ void main() {
     expect(history.first.indicators, isNotEmpty);
   });
 
+  testWidgets('el diálogo sugiere pacientes existentes y los asocia', (tester) async {
+    await AnthroDatabase.instance
+        .saveMeasurement(patientName: 'Sofía Restrepo', input: _sampleInput(), result: _sampleResult());
+
+    await tester.pumpWidget(_wrap(
+      CalculatorScreen(clock: () => DateTime(2026, 8, 15)),
+    ));
+    await tester.pump();
+
+    await tester.enterText(find.byType(TextField).first, '14/05/2024');
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+        find.text('Guardar esta medición en el historial del paciente'), 200,
+        scrollable: find.byType(Scrollable).first);
+    await tester.tap(find.text('Guardar esta medición en el historial del paciente'));
+    await tester.pump();
+    await tester.tap(find.widgetWithText(PrimaryButton, 'Calcular indicadores'));
+    await tester.pumpAndSettle();
+
+    // Escribir parte del nombre dispara la búsqueda (debounce 250 ms).
+    final nameField = find.descendant(
+        of: find.byType(Dialog), matching: find.byType(TextField));
+    await tester.enterText(nameField, 'sof');
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump();
+
+    expect(find.text('Sofía Restrepo'), findsOneWidget);
+    expect(find.text('1 medición'), findsOneWidget);
+    expect(find.textContaining('−2.300'), findsOneWidget);
+
+    // Seleccionar la sugerencia rellena el campo y asocia por id.
+    await tester.tap(find.text('Sofía Restrepo'));
+    await tester.pump();
+    await tester.tap(find.widgetWithText(PrimaryButton, 'Guardar'));
+    await tester.pumpAndSettle();
+
+    final patients = await AnthroDatabase.instance.listPatients();
+    expect(patients, hasLength(1));
+    expect(patients.first.measurementCount, 2);
+  });
+
+  testWidgets('con _save activo el botón de resultados dice Actualizar y actualiza', (tester) async {
+    await tester.pumpWidget(_wrap(
+      CalculatorScreen(clock: () => DateTime(2026, 8, 15)),
+    ));
+    await tester.pump();
+
+    await tester.enterText(find.byType(TextField).first, '14/05/2024');
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+        find.text('Guardar esta medición en el historial del paciente'), 200,
+        scrollable: find.byType(Scrollable).first);
+    await tester.tap(find.text('Guardar esta medición en el historial del paciente'));
+    await tester.pump();
+    await tester.tap(find.widgetWithText(PrimaryButton, 'Calcular indicadores'));
+    await tester.pumpAndSettle();
+
+    final nameField = find.descendant(
+        of: find.byType(Dialog), matching: find.byType(TextField));
+    await tester.enterText(nameField, 'Sofía Restrepo');
+    await tester.pump();
+    await tester.tap(find.widgetWithText(PrimaryButton, 'Guardar'));
+    await tester.pumpAndSettle();
+
+    // Como ya se guardó con _save, el botón ofrece Actualizar (al pie de la
+    // lista de resultados, que es perezosa).
+    expect(find.text('Resultados'), findsOneWidget);
+    await tester.scrollUntilVisible(
+        find.widgetWithText(SecondaryButton, 'Actualizar'), 300,
+        scrollable: find.byType(Scrollable).first);
+    expect(find.widgetWithText(SecondaryButton, 'Actualizar'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(SecondaryButton, 'Actualizar'));
+    await tester.pumpAndSettle();
+
+    // El diálogo viene precargado; confirmar actualiza en lugar de duplicar.
+    expect(find.text('¿Con qué paciente se guarda esta medición?'), findsOneWidget);
+    await tester.tap(find.widgetWithText(PrimaryButton, 'Guardar'));
+    await tester.pumpAndSettle();
+
+    // El snackbar del guardado inicial aún se muestra; dejarlo expirar para
+    // que aparezca el de actualización.
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Medición actualizada en el historial de Sofía Restrepo'),
+        findsOneWidget);
+    final patients = await AnthroDatabase.instance.listPatients();
+    expect(patients, hasLength(1));
+    expect(patients.first.measurementCount, 1);
+    final history =
+        await AnthroDatabase.instance.measurementsForPatient(patients.first.id);
+    expect(history.single.updatedAt, isNotNull);
+  });
+
   testWidgets('PatientsScreen lista pacientes guardados desde la BD', (tester) async {
     await AnthroDatabase.instance
         .saveMeasurement(patientName: 'Sofía Restrepo', input: _sampleInput(), result: _sampleResult());

@@ -172,10 +172,12 @@ class _PatientsScreenState extends State<PatientsScreen> {
                           child: Column(
                             children: [
                               for (int i = 0; i < list.length; i++) ...[
-                                _PatientTile(patient: list[i], onTap: () {
-                                  Navigator.of(context).push(MaterialPageRoute(
-                                      builder: (_) =>
-                                          PatientDetailScreen(patient: list[i])));
+                                _PatientTile(patient: list[i], onTap: () async {
+                                  await Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                          builder: (_) => PatientDetailScreen(
+                                              patient: list[i])));
+                                  if (mounted) await _load();
                                 }),
                                 if (i < list.length - 1) const ThinDivider(),
                               ],

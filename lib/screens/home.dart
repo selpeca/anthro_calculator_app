@@ -39,8 +39,11 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _patients = patients);
   }
 
-  void _open(BuildContext context, Widget screen) {
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+  /// Abre una pantalla y recarga el home al volver, para que refleje
+  /// mediciones guardadas o editadas durante la navegación.
+  Future<void> _open(BuildContext context, Widget screen) async {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+    if (mounted) await _load();
   }
 
   @override

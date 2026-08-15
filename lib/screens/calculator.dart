@@ -166,24 +166,33 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     );
     final result = computeAnthro(input, ref);
 
+    int? savedMeasurementId;
+    String? savedPatientName;
     if (_save) {
       // Persistir el resultado completo, asociado a un paciente por nombre.
-      final name = await promptPatientName(context);
-      if (name == null || !mounted) return;
-      await AnthroDatabase.instance.saveMeasurement(
-        patientName: name,
+      final target = await promptPatientName(context);
+      if (target == null || !mounted) return;
+      savedMeasurementId = await AnthroDatabase.instance.saveMeasurement(
+        patientName: target.name,
+        patientId: target.patientId,
         input: input,
         result: result,
       );
+      savedPatientName = target.name;
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Medición guardada en el historial de $name'),
+        content: Text('Medición guardada en el historial de ${target.name}'),
       ));
     }
 
     if (!mounted) return;
     Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => ResultsScreen(input: input, result: result),
+      builder: (_) => ResultsScreen(
+        input: input,
+        result: result,
+        savedMeasurementId: savedMeasurementId,
+        savedPatientName: savedPatientName,
+      ),
     ));
   }
 

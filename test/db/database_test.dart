@@ -118,4 +118,117 @@ void main() {
     expect(patients, hasLength(2));
     expect(patients.map((p) => p.name), containsAll(['Ana', 'Luis']));
   });
+
+  test('searchPatients filtra por nombre, insensible a acentos, solo con historial', () async {
+    final db = AnthroDatabase.instance;
+    await db.saveMeasurement(patientName: 'Sofía Restrepo', input: input(), result: result());
+    await db.saveMeasurement(patientName: 'Mateo', input: input(), result: result());
+
+    expect(await db.searchPatients('sofía'), hasLength(1));
+    expect((await db.searchPatients('sofía')).first.name, 'Sofía Restrepo');
+    expect(await db.searchPatients('rest'), hasLength(1));
+    expect(await db.searchPatients('SOFIA'), hasLength(1));
+    expect(await db.searchPatients('zzz'), isEmpty);
+    expect(await db.searchPatients(''), isEmpty);
+  });
+
+  test('saveMeasurement con patientId asocia la medición a ese paciente', () async {
+    final db = AnthroDatabase.instance;
+    await db.saveMeasurement(patientName: 'Ana', input: input(), result: result());
+    final ana = (await db.listPatients()).first;
+
+    await db.saveMeasurement(
+      patientName: 'Otro nombre ignorado',
+      patientId: ana.id,
+      input: input(),
+      result: result(),
+    );
+
+    final patients = await db.listPatients();
+    expect(patients, hasLength(1));
+    expect(patients.first.id, ana.id);
+    expect(patients.first.measurementCount, 2);
+    final history = await db.measurementsForPatient(ana.id);
+    expect(history, hasLength(2));
+  });
+
+  test('updateMeasurement re-persiste valores e indicadores y marca updated_at', () async {
+    final db = AnthroDatabase.instance;
+    final id = await db.saveMeasurement(
+        patientName: 'Mateo', input: input(), result: result());
+    final before = (await db.measurementsForPatient(
+        (await db.listPatients()).first.id)).first;
+    expect(before.updatedAt, isNull);
+
+    final newInput = AnthroInput(
+      birthDate: DateTime(2024, 5, 14),
+      measurementDate: DateTime(2026, 8, 15),
+      sex: Sex.female,
+      weightKg: 13.0,
+      statureCm: 88.0,
+      position: MeasurePosition.standing,
+      headCircumferenceCm: 44.5,
+      standardId: 'oms-2006',
+    );
+    final newResult = AnthroResult(
+      age: const Age(days: 823, years: 2, months: 3, remDays: 1),
+      sex: Sex.female,
+      standardId: 'oms-2006',
+      standardLabel: 'OMS 2006',
+      weightKg: 13.0,
+      statureCm: 88.0,
+      headCircumferenceCm: 44.5,
+      bmi: 16.8,
+      indicators: const [
+        Indicator(
+          name: 'Peso / Edad',
+          z: 0.1,
+          percentile: 54.0,
+          percentileLabel: '54',
+          classification: 'Adecuado',
+          status: ClinicalStatus.ok,
+        ),
+      ],
+      overall: ClinicalStatus.ok,
+      overallLabel: 'Normal',
+    );
+
+    await db.updateMeasurement(
+      measurementId: id,
+      patientName: 'Mateo',
+      input: newInput,
+      result: newResult,
+    );
+
+    final history = await db.measurementsForPatient((await db.listPatients()).first.id);
+    expect(history, hasLength(1));
+    final m = history.first;
+    expect(m.weightKg, 13.0);
+    expect(m.statureCm, 88.0);
+    expect(m.headCircumferenceCm, 44.5);
+    expect(m.overall, ClinicalStatus.ok);
+    expect(m.indicators, hasLength(1));
+    expect(m.indicators.first.z, closeTo(0.1, 1e-9));
+    expect(m.updatedAt, isNotNull);
+  });
+
+  test('updateMeasurement reasigna a otro paciente cuando cambia el paciente', () async {
+    final db = AnthroDatabase.instance;
+    final id = await db.saveMeasurement(
+        patientName: 'Mateo', input: input(), result: result());
+    await db.saveMeasurement(patientName: 'Ana', input: input(), result: result());
+    final ana = (await db.listPatients())
+        .firstWhere((p) => p.name == 'Ana');
+
+    await db.updateMeasurement(
+      measurementId: id,
+      patientName: 'Ana',
+      patientId: ana.id,
+      input: input(),
+      result: result(),
+    );
+
+    expect(await db.measurementsForPatient(ana.id), hasLength(2));
+    expect((await db.listPatients()).firstWhere((p) => p.name == 'Mateo').measurementCount, 0);
+  });
 }

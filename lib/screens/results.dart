@@ -9,11 +9,22 @@ import 'common.dart';
 import 'charts_screen.dart';
 
 class ResultsScreen extends StatelessWidget {
-  const ResultsScreen({super.key, required this.input, required this.result});
+  const ResultsScreen({
+    super.key,
+    required this.input,
+    required this.result,
+    this.savedMeasurementId,
+    this.savedPatientName,
+  });
 
   /// Entrada del cálculo; se persiste junto con el resultado.
   final AnthroInput input;
   final AnthroResult result;
+
+  /// Si ya se guardó al calcular (opción "guardar en historial"), el id y el
+  /// nombre permiten "Actualizar" en lugar de duplicar.
+  final int? savedMeasurementId;
+  final String? savedPatientName;
 
   @override
   Widget build(BuildContext context) {
@@ -118,18 +129,40 @@ class ResultsScreen extends StatelessWidget {
                 }),
               ),
               const SizedBox(width: 10),
-              SecondaryButton('Guardar', onTap: () async {
-                final name = await promptPatientName(context);
-                if (name == null || !context.mounted) return;
-                await AnthroDatabase.instance.saveMeasurement(
-                  patientName: name,
-                  input: input,
-                  result: result,
-                );
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Medición guardada en el historial de $name')),
-                );
+              SecondaryButton(savedMeasurementId != null ? 'Actualizar' : 'Guardar',
+                  onTap: () async {
+                final target = await promptPatientName(context,
+                    initialName: savedPatientName);
+                if (target == null || !context.mounted) return;
+                final savedId = savedMeasurementId;
+                if (savedId != null) {
+                  await AnthroDatabase.instance.updateMeasurement(
+                    measurementId: savedId,
+                    patientName: target.name,
+                    patientId: target.patientId,
+                    input: input,
+                    result: result,
+                  );
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content: Text(
+                            'Medición actualizada en el historial de ${target.name}')),
+                  );
+                } else {
+                  await AnthroDatabase.instance.saveMeasurement(
+                    patientName: target.name,
+                    patientId: target.patientId,
+                    input: input,
+                    result: result,
+                  );
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content: Text(
+                            'Medición guardada en el historial de ${target.name}')),
+                  );
+                }
               }),
             ],
           ),
