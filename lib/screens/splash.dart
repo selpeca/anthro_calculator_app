@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import 'home.dart';
-
-/// Splash screen (design 3a/3b). Fades in the brand mark, shows an
-/// offline-ready badge, then routes to the home dashboard.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 

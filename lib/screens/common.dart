@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
+import 'package:url_launcher/link.dart';
 
 /// "Desarrollado por selpeca" credit shown at the foot of most screens.
 class Footer extends StatelessWidget {
@@ -12,21 +13,32 @@ class Footer extends StatelessWidget {
     return Padding(
       padding: padding,
       child: Center(
-        child: Text.rich(
-          TextSpan(
-            style: TextStyle(fontSize: 10.5, height: 1.4, color: p.faint),
-            children: [
-              const TextSpan(text: 'Desarrollado por '),
-              TextSpan(
-                text: 'selpeca',
-                style: TextStyle(
-                  color: p.primary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          textAlign: TextAlign.center,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Desarrollado por ',
+              style: TextStyle(fontSize: 10.5, height: 1.4, color: p.faint),
+            ),
+            Link(
+              uri: Uri.parse('https://www.linkedin.com/in/selpeca/'),
+              target: LinkTarget.blank,
+              builder: (context, followLink) {
+                return InkWell(
+                  onTap: followLink,
+                  child: Text(
+                    'selpeca',
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      height: 1.4,
+                      color: p.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
         ),
       ),
     );

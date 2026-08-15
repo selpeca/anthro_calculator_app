@@ -218,18 +218,6 @@ class _Header extends StatelessWidget {
                     );
                   },
                 ),
-                Container(
-                  width: 36,
-                  height: 36,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Text('GR',
-                      style: TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
-                ),
               ],
             ),
             const SizedBox(height: 14),

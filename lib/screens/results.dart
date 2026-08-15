@@ -5,8 +5,6 @@ import '../widgets.dart';
 import 'common.dart';
 import 'charts_screen.dart';
 
-/// Per-indicator results (design 1d). Includes the "¿Qué significa cada color?"
-/// legend sheet (design 2a).
 class ResultsScreen extends StatelessWidget {
   const ResultsScreen({super.key});
 
@@ -234,7 +232,6 @@ class _IndicatorCard extends StatelessWidget {
   }
 }
 
-/// The semaforización legend bottom sheet (design 2a).
 void showLegendSheet(BuildContext context) {
   final p = AppPalette.of(context);
   showModalBottomSheet(

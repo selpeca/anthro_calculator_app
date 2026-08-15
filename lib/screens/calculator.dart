@@ -5,8 +5,6 @@ import '../widgets.dart';
 import 'common.dart';
 import 'results.dart';
 
-/// Anthropometric data entry (design 1c). Interactive: type weight & height,
-/// switch reference and measurement position; IMC and plausibility update live.
 class CalculatorScreen extends StatefulWidget {
   const CalculatorScreen({super.key});
 
