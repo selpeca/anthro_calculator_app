@@ -1,19 +1,47 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
-import '../data.dart';
+import '../anthro/age.dart';
+import '../db/database.dart';
+import '../db/models.dart';
 import '../widgets.dart';
 import '../charts.dart';
 import 'common.dart';
 import 'calculator.dart';
+import 'patient_format.dart';
 
-/// Patient file with measurement history (design 1j).
-class PatientDetailScreen extends StatelessWidget {
+/// Patient file with measurement history (design 1j). El historial se lee de
+/// la base SQLite local del paciente.
+class PatientDetailScreen extends StatefulWidget {
   const PatientDetailScreen({super.key, required this.patient});
-  final Patient patient;
+  final SavedPatient patient;
+
+  @override
+  State<PatientDetailScreen> createState() => _PatientDetailScreenState();
+}
+
+class _PatientDetailScreenState extends State<PatientDetailScreen> {
+  List<SavedMeasurement>? _history;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final history =
+        await AnthroDatabase.instance.measurementsForPatient(widget.patient.id);
+    if (!mounted) return;
+    setState(() => _history = history);
+  }
 
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
+    final history = _history ?? const <SavedMeasurement>[];
+    final latest = history.isNotEmpty ? history.first : widget.patient.latest;
+    final zTiles = latest == null ? const <Widget>[] : _zTiles(latest);
+
     return Scaffold(
       backgroundColor: p.background,
       body: ListView(
@@ -50,7 +78,7 @@ class PatientDetailScreen extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     child: Row(
                       children: [
-                        InitialsAvatar(patient.initials,
+                        InitialsAvatar(initialsOf(widget.patient.name),
                             size: 48,
                             bg: p.isDark ? const Color(0xFF2A2036) : const Color(0xFFF0E6F3),
                             fg: p.isDark ? const Color(0xFFC79BD6) : const Color(0xFF7B4A8A)),
@@ -59,11 +87,11 @@ class PatientDetailScreen extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(patient.name,
+                              Text(widget.patient.name,
                                   style: TextStyle(
                                       fontSize: 18, fontWeight: FontWeight.w700, color: p.onSurface)),
                               const SizedBox(height: 3),
-                              Text('F · 14/05/2024 · 2 a 3 m · TI 1.098.442.117',
+                              Text(_headerSubtitle(latest),
                                   style: TextStyle(fontSize: 11.5, height: 1.4, color: p.muted)),
                             ],
                           ),
@@ -82,7 +110,7 @@ class PatientDetailScreen extends StatelessWidget {
                                   height: 5,
                                   decoration: BoxDecoration(color: p.ok, shape: BoxShape.circle)),
                               const SizedBox(width: 5),
-                              Text('Sinc. local',
+                              Text('Local',
                                   style: TextStyle(
                                       fontSize: 10.5, fontWeight: FontWeight.w500, color: p.okText)),
                             ],
@@ -95,46 +123,49 @@ class PatientDetailScreen extends StatelessWidget {
               ),
             ),
           ),
-          // Z summary tiles.
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-            child: Row(
-              children: [
-                Expanded(child: _zTile(context, 'Peso/Edad', '−0.42', p.onSurface)),
-                const SizedBox(width: 9),
-                Expanded(child: _zTile(context, 'Talla/Edad', '−1.15', p.warn)),
-                const SizedBox(width: 9),
-                Expanded(child: _zTile(context, 'PC/Edad', '−2.30', p.bad)),
-              ],
-            ),
-          ),
-          // Trend chart.
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: SectionCard(
-              padding: const EdgeInsets.fromLTRB(12, 14, 12, 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          if (latest == null)
+            _emptyHistory(context)
+          else ...[
+            // Z summary tiles.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+              child: Row(
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Trayectoria Peso/Edad',
-                            style: TextStyle(
-                                fontSize: 13, fontWeight: FontWeight.w600, color: p.onSurface)),
-                        Text('4 mediciones',
-                            style: TextStyle(fontSize: 10.5, color: p.muted)),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const ZScoreChart(dark: true),
+                  for (int i = 0; i < zTiles.length; i++) ...[
+                    if (i > 0) const SizedBox(width: 9),
+                    Expanded(child: zTiles[i]),
+                  ],
                 ],
               ),
             ),
-          ),
+            // Trend chart.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: SectionCard(
+                padding: const EdgeInsets.fromLTRB(12, 14, 12, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Trayectoria Peso/Edad',
+                              style: TextStyle(
+                                  fontSize: 13, fontWeight: FontWeight.w600, color: p.onSurface)),
+                          Text('${history.length} mediciones',
+                              style: TextStyle(fontSize: 10.5, color: p.muted)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const ZScoreChart(dark: true),
+                  ],
+                ),
+              ),
+            ),
+          ],
           // History list.
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -154,8 +185,16 @@ class PatientDetailScreen extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const ThinDivider(),
-                  for (final m in kSampleHistory) _historyRow(context, m),
+                  if (history.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 4, 14, 16),
+                      child: Text('Sin mediciones todavía',
+                          style: TextStyle(fontSize: 12, color: p.muted)),
+                    )
+                  else ...[
+                    const ThinDivider(),
+                    for (final m in history) _historyRow(context, m),
+                  ],
                 ],
               ),
             ),
@@ -182,6 +221,53 @@ class PatientDetailScreen extends StatelessWidget {
     );
   }
 
+  String _headerSubtitle(SavedMeasurement? latest) {
+    if (latest == null) return 'Sin mediciones guardadas';
+    final parts = [
+      sexLabel(latest.sex),
+      formatDmy(latest.birthDate),
+      ageLabel(latest.ageYears, latest.ageMonths, latest.ageRemDays),
+    ];
+    return parts.join(' · ');
+  }
+
+  List<Widget> _zTiles(SavedMeasurement latest) {
+    final tiles = <Widget>[];
+    final byName = {for (final i in latest.indicators) i.name: i};
+    final ordered = <SavedIndicator>[
+      if (byName.containsKey('Peso / Edad')) byName['Peso / Edad']!,
+      if (byName.containsKey('Talla / Edad')) byName['Talla / Edad']!,
+      if (byName.containsKey('Perímetro cefálico / Edad'))
+        byName['Perímetro cefálico / Edad']!,
+    ];
+    final selection = ordered.isNotEmpty
+        ? ordered
+        : latest.indicators.take(3).toList();
+    for (final ind in selection) {
+      tiles.add(_zTile(context, shortIndicatorName(ind.name), zLabelOf(ind.z),
+          ind.status));
+    }
+    return tiles;
+  }
+
+  Widget _emptyHistory(BuildContext context) {
+    final p = AppPalette.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+      child: Column(
+        children: [
+          Icon(Icons.monitor_heart_outlined, color: p.faint, size: 34),
+          const SizedBox(height: 10),
+          Text('Sin mediciones para este paciente',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: p.onSurface)),
+          const SizedBox(height: 4),
+          Text('Use "Nueva medición" para agregar la primera.',
+              style: TextStyle(fontSize: 12, color: p.muted)),
+        ],
+      ),
+    );
+  }
+
   Widget _pill(BuildContext context, String label) {
     final p = AppPalette.of(context);
     return Container(
@@ -195,8 +281,9 @@ class PatientDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _zTile(BuildContext context, String label, String z, Color color) {
+  Widget _zTile(BuildContext context, String label, String z, ClinicalStatus status) {
     final p = AppPalette.of(context);
+    final color = p.statusColor(status);
     return Container(
       padding: const EdgeInsets.all(11),
       decoration: BoxDecoration(
@@ -225,8 +312,9 @@ class PatientDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _historyRow(BuildContext context, Measurement m) {
+  Widget _historyRow(BuildContext context, SavedMeasurement m) {
     final p = AppPalette.of(context);
+    final worst = worstIndicator(m);
     return Container(
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: p.borderSoft)),
@@ -235,10 +323,10 @@ class PatientDetailScreen extends StatelessWidget {
       child: Row(
         children: [
           SizedBox(
-            width: 46,
-            child: Text(m.date,
+            width: 52,
+            child: Text(historyDateLabel(m.measurementDate),
                 style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10,
                     height: 1.2,
                     fontWeight: FontWeight.w600,
                     fontFamily: 'monospace',
@@ -249,18 +337,19 @@ class PatientDetailScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(m.summary,
+                Text(measurementSummary(m),
                     style: TextStyle(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w500,
                         fontFeatures: kTabular,
                         color: p.onSurface)),
                 const SizedBox(height: 2),
-                Text(m.age, style: TextStyle(fontSize: 10.5, height: 1.3, color: p.muted)),
+                Text(measurementAgeLabel(m),
+                    style: TextStyle(fontSize: 10.5, height: 1.3, color: p.muted)),
               ],
             ),
           ),
-          StatusChip(m.z, m.status),
+          StatusChip(zLabelOf(worst.z), worst.status),
         ],
       ),
     );

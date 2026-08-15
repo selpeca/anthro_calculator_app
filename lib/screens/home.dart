@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
-import '../data.dart';
+import '../db/database.dart';
+import '../db/models.dart';
 import '../widgets.dart';
 import 'common.dart';
 import 'calculator.dart';
 import 'velocity.dart';
 import 'patients.dart';
 import 'patient_detail.dart';
+import 'patient_format.dart';
 import 'reference_status.dart';
 
 import '../settings.dart';
@@ -14,9 +16,28 @@ import 'app_drawer.dart';
 import 'about_dialog.dart';
 
 /// Home / dashboard (design 1b): branded header, quick action, module grid and
-/// a preview of the patient database.
-class HomeScreen extends StatelessWidget {
+/// a preview of the patient database (leída de la base local).
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  List<SavedPatient>? _patients;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final patients = await AnthroDatabase.instance.listPatients();
+    if (!mounted) return;
+    setState(() => _patients = patients);
+  }
 
   void _open(BuildContext context, Widget screen) {
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
@@ -25,6 +46,7 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
+    final patients = _patients ?? const <SavedPatient>[];
     return Scaffold(
       backgroundColor: p.background,
       drawer: const AppDrawer(),
@@ -132,7 +154,8 @@ class HomeScreen extends StatelessWidget {
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
                                 color: p.onSurface)),
-                        Text('342 registros',
+                        Text(
+                            '${patients.length} registro${patients.length == 1 ? '' : 's'}',
                             style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w500,
@@ -141,15 +164,29 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
                   const ThinDivider(),
-                  for (final patient in kSamplePatients.take(2))
-                    _PatientRow(patient: patient, onTap: () => _open(context, PatientDetailScreen(patient: patient))),
-                  const ThinDivider(),
+                  if (patients.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 14, 14, 4),
+                      child: Text('Aún no hay mediciones guardadas.',
+                          style: TextStyle(fontSize: 12, height: 1.35, color: p.muted)),
+                    )
+                  else
+                    for (final patient in patients.take(2)) ...[
+                      _PatientRow(
+                          patient: patient,
+                          onTap: () => _open(
+                              context, PatientDetailScreen(patient: patient))),
+                      const ThinDivider(),
+                    ],
                   InkWell(
                     onTap: () => _open(context, const PatientsScreen()),
                     child: Padding(
                       padding: const EdgeInsets.all(12),
                       child: Center(
-                        child: Text('Ver los 342 registros',
+                        child: Text(
+                            patients.isEmpty
+                                ? 'Ir a la base de pacientes'
+                                : 'Ver todos los registros',
                             style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -309,19 +346,21 @@ class _ModuleCard extends StatelessWidget {
 
 class _PatientRow extends StatelessWidget {
   const _PatientRow({required this.patient, required this.onTap});
-  final Patient patient;
+  final SavedPatient patient;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
+    final latest = patient.latest;
+    final meta = patientMeta(latest).split(' · ').take(3).join(' · ');
     return InkWell(
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
         child: Row(
           children: [
-            InitialsAvatar(patient.initials, size: 32),
+            InitialsAvatar(initialsOf(patient.name), size: 32),
             const SizedBox(width: 11),
             Expanded(
               child: Column(
@@ -331,12 +370,13 @@ class _PatientRow extends StatelessWidget {
                       style: TextStyle(
                           fontSize: 13, fontWeight: FontWeight.w500, color: p.onSurface)),
                   const SizedBox(height: 2),
-                  Text(patient.meta.split(' · ').take(3).join(' · '),
+                  Text(meta,
                       style: TextStyle(fontSize: 11, color: p.muted)),
                 ],
               ),
             ),
-            StatusChip(patient.tag, patient.status),
+            StatusChip(patientTag(latest),
+                latest?.overall ?? ClinicalStatus.none),
           ],
         ),
       ),

@@ -8,6 +8,7 @@ import '../anthro/indicators.dart';
 import '../anthro/plausibility.dart';
 import '../anthro/reference.dart';
 import '../reference/reference_repository.dart';
+import '../db/database.dart';
 import 'common.dart';
 import 'results.dart';
 import '../settings.dart';
@@ -34,7 +35,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   final RefStandard _ref = RefStandard.oms;
   bool _female = true;
   MeasurePosition _pos = MeasurePosition.standing;
-  bool _save = true;
+  bool _save = false;
 
   late final DateTime _today;
 
@@ -145,7 +146,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     if (picked != null) _meas.text = formatDmy(picked);
   }
 
-  void _calculate() {
+  Future<void> _calculate() async {
     final ref = _reference;
     if (ref == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -153,21 +154,36 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       ));
       return;
     }
-    final result = computeAnthro(
-      AnthroInput(
-        birthDate: _birthDate!,
-        measurementDate: _measDate!,
-        sex: _sex,
-        weightKg: _pesoVal!,
-        statureCm: _tallaVal!,
-        position: _pos,
-        headCircumferenceCm: _pcVal,
-        standardId: ref.standardId,
-      ),
-      ref,
+    final input = AnthroInput(
+      birthDate: _birthDate!,
+      measurementDate: _measDate!,
+      sex: _sex,
+      weightKg: _pesoVal!,
+      statureCm: _tallaVal!,
+      position: _pos,
+      headCircumferenceCm: _pcVal,
+      standardId: ref.standardId,
     );
+    final result = computeAnthro(input, ref);
+
+    if (_save) {
+      // Persistir el resultado completo, asociado a un paciente por nombre.
+      final name = await promptPatientName(context);
+      if (name == null || !mounted) return;
+      await AnthroDatabase.instance.saveMeasurement(
+        patientName: name,
+        input: input,
+        result: result,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Medición guardada en el historial de $name'),
+      ));
+    }
+
+    if (!mounted) return;
     Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => ResultsScreen(result: result),
+      builder: (_) => ResultsScreen(input: input, result: result),
     ));
   }
 

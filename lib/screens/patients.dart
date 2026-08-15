@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
-import '../data.dart';
+import '../db/database.dart';
+import '../db/models.dart';
 import '../widgets.dart';
 import 'patient_detail.dart';
+import 'patient_format.dart';
 
 /// Patient database (design 1i): search, filters, list, and local backup card.
+/// La lista se lee de la base SQLite local.
 class PatientsScreen extends StatefulWidget {
   const PatientsScreen({super.key});
 
@@ -15,17 +18,39 @@ class PatientsScreen extends StatefulWidget {
 class _PatientsScreenState extends State<PatientsScreen> {
   String _query = '';
   int _filter = 0;
+  List<SavedPatient>? _patients;
 
-  static const _filters = ['Todos', 'Con alerta · 24', 'Prematuros', 'PC'];
+  static const _filters = ['Todos', 'Con alerta', 'Prematuros', 'PC'];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final patients = await AnthroDatabase.instance.listPatients();
+    if (!mounted) return;
+    setState(() => _patients = patients);
+  }
 
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    var list = kSamplePatients.where((pt) {
-      if (_query.isNotEmpty && !pt.name.toLowerCase().contains(_query.toLowerCase())) {
+    final patients = _patients ?? const <SavedPatient>[];
+    final loading = _patients == null;
+
+    final list = patients.where((pt) {
+      final latest = pt.latest;
+      if (_query.isNotEmpty &&
+          !pt.name.toLowerCase().contains(_query.toLowerCase())) {
         return false;
       }
-      if (_filter == 1 && pt.status != ClinicalStatus.warn && pt.status != ClinicalStatus.severe) {
+      if (_filter == 1 &&
+          (latest == null ||
+              (latest.overall != ClinicalStatus.warn &&
+                  latest.overall != ClinicalStatus.bad &&
+                  latest.overall != ClinicalStatus.severe))) {
         return false;
       }
       return true;
@@ -62,7 +87,8 @@ class _PatientsScreenState extends State<PatientsScreen> {
                                 style: TextStyle(
                                     fontSize: 18, fontWeight: FontWeight.w600, color: p.onSurface)),
                             const SizedBox(height: 2),
-                            Text('342 registros · base local cifrada',
+                            Text(
+                                '${patients.length} registro${patients.length == 1 ? '' : 's'} · base local',
                                 style: TextStyle(fontSize: 11, color: p.muted)),
                           ],
                         ),
@@ -88,7 +114,7 @@ class _PatientsScreenState extends State<PatientsScreen> {
                           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                           border: InputBorder.none,
                           prefixIcon: Icon(Icons.search, size: 18, color: p.faint),
-                          hintText: 'Buscar por nombre o documento',
+                          hintText: 'Buscar por nombre',
                           hintStyle: TextStyle(fontSize: 13, color: p.faint),
                         ),
                       ),
@@ -133,95 +159,129 @@ class _PatientsScreenState extends State<PatientsScreen> {
             ),
           ),
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-              children: [
-                SectionCard(
-                  padding: EdgeInsets.zero,
-                  child: Column(
+            child: loading
+                ? const Center(child: CircularProgressIndicator())
+                : ListView(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
                     children: [
-                      for (int i = 0; i < list.length; i++) ...[
-                        _PatientTile(patient: list[i]),
-                        if (i < list.length - 1) const ThinDivider(),
+                      if (list.isEmpty)
+                        _emptyState(context)
+                      else ...[
+                        SectionCard(
+                          padding: EdgeInsets.zero,
+                          child: Column(
+                            children: [
+                              for (int i = 0; i < list.length; i++) ...[
+                                _PatientTile(patient: list[i], onTap: () {
+                                  Navigator.of(context).push(MaterialPageRoute(
+                                      builder: (_) =>
+                                          PatientDetailScreen(patient: list[i])));
+                                }),
+                                if (i < list.length - 1) const ThinDivider(),
+                              ],
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: p.surface,
+                            borderRadius: BorderRadius.circular(Radii.card),
+                            border: Border.all(
+                                color: p.isDark ? p.border : const Color(0xFFCFD8DF),
+                                style: BorderStyle.solid),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 38,
+                                height: 38,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: p.okBg,
+                                  borderRadius: BorderRadius.circular(Radii.control),
+                                ),
+                                child: Icon(Icons.import_export, color: p.ok, size: 18),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Respaldo local',
+                                        style: TextStyle(
+                                            fontSize: 12.5, fontWeight: FontWeight.w600, color: p.onSurface)),
+                                    const SizedBox(height: 2),
+                                    Text('La base local se guarda en el dispositivo',
+                                        style: TextStyle(fontSize: 11, height: 1.35, color: p.muted)),
+                                  ],
+                                ),
+                              ),
+                              Text('Local',
+                                  style: TextStyle(
+                                      fontSize: 11.5, fontWeight: FontWeight.w600, color: p.primary)),
+                            ],
+                          ),
+                        ),
                       ],
-                      if (list.isNotEmpty) const ThinDivider(),
-                      Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Center(
-                          child: Text('Ver los 342 registros',
-                              style: TextStyle(
-                                  fontSize: 12, fontWeight: FontWeight.w600, color: p.primary)),
-                        ),
-                      ),
                     ],
                   ),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: p.surface,
-                    borderRadius: BorderRadius.circular(Radii.card),
-                    border: Border.all(
-                        color: p.isDark ? p.border : const Color(0xFFCFD8DF),
-                        style: BorderStyle.solid),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 38,
-                        height: 38,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: p.okBg,
-                          borderRadius: BorderRadius.circular(Radii.control),
-                        ),
-                        child: Icon(Icons.import_export, color: p.ok, size: 18),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Respaldo local',
-                                style: TextStyle(
-                                    fontSize: 12.5, fontWeight: FontWeight.w600, color: p.onSurface)),
-                            const SizedBox(height: 2),
-                            Text('Último export: 14/08/2026 · JSON + CSV · 1.8 MB',
-                                style: TextStyle(fontSize: 11, height: 1.35, color: p.muted)),
-                          ],
-                        ),
-                      ),
-                      Text('Ahora',
-                          style: TextStyle(
-                              fontSize: 11.5, fontWeight: FontWeight.w600, color: p.primary)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
           ),
         ],
       ),
     );
   }
+
+  Widget _emptyState(BuildContext context) {
+    final p = AppPalette.of(context);
+    return Column(
+      children: [
+        const SizedBox(height: 24),
+        Container(
+          width: 56,
+          height: 56,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: p.primaryTint,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Icon(Icons.people_outline, color: p.primary, size: 26),
+        ),
+        const SizedBox(height: 14),
+        Text('Aún no hay mediciones guardadas',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: p.onSurface)),
+        const SizedBox(height: 5),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 28),
+          child: Text(
+            'Calcula una medición y actívala con "Guardar esta medición" para que el paciente aparezca aquí.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12, height: 1.45, color: p.muted),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _PatientTile extends StatelessWidget {
-  const _PatientTile({required this.patient});
-  final Patient patient;
+  const _PatientTile({required this.patient, required this.onTap});
+  final SavedPatient patient;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
+    final latest = patient.latest;
+    final status = latest?.overall ?? ClinicalStatus.none;
     return InkWell(
-      onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => PatientDetailScreen(patient: patient))),
+      onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Row(
           children: [
-            InitialsAvatar(patient.initials, size: 36),
+            InitialsAvatar(initialsOf(patient.name), size: 36),
             const SizedBox(width: 11),
             Expanded(
               child: Column(
@@ -231,7 +291,7 @@ class _PatientTile extends StatelessWidget {
                       style: TextStyle(
                           fontSize: 13.5, fontWeight: FontWeight.w500, color: p.onSurface)),
                   const SizedBox(height: 2),
-                  Text(patient.meta,
+                  Text(patientMeta(latest),
                       style: TextStyle(fontSize: 11, height: 1.35, color: p.muted)),
                 ],
               ),
@@ -239,9 +299,9 @@ class _PatientTile extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                StatusChip(patient.tag, patient.status),
+                StatusChip(patientTag(latest), status),
                 const SizedBox(height: 4),
-                Text(patient.date,
+                Text(relativeDateLabel(latest),
                     style: TextStyle(fontSize: 10, fontFamily: 'monospace', color: p.faint)),
               ],
             ),

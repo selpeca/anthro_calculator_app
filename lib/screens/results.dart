@@ -4,12 +4,15 @@ import '../data.dart';
 import '../widgets.dart';
 import '../anthro/indicators.dart';
 import '../anthro/reference.dart';
+import '../db/database.dart';
 import 'common.dart';
 import 'charts_screen.dart';
 
 class ResultsScreen extends StatelessWidget {
-  const ResultsScreen({super.key, required this.result});
+  const ResultsScreen({super.key, required this.input, required this.result});
 
+  /// Entrada del cálculo; se persiste junto con el resultado.
+  final AnthroInput input;
   final AnthroResult result;
 
   @override
@@ -115,9 +118,17 @@ class ResultsScreen extends StatelessWidget {
                 }),
               ),
               const SizedBox(width: 10),
-              SecondaryButton('Guardar', onTap: () {
+              SecondaryButton('Guardar', onTap: () async {
+                final name = await promptPatientName(context);
+                if (name == null || !context.mounted) return;
+                await AnthroDatabase.instance.saveMeasurement(
+                  patientName: name,
+                  input: input,
+                  result: result,
+                );
+                if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Medición guardada en el historial')),
+                  SnackBar(content: Text('Medición guardada en el historial de $name')),
                 );
               }),
             ],
