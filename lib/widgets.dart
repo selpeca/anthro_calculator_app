@@ -2,9 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'theme.dart';
 
-/// A drawn brand mark (the original PNG logo could not be retrieved intact via
-/// the design API, so this vector stand-in carries the app identity: a growth
-/// curve rising through a measured child figure, in the brand blue).
+/// The brand logo icon using assets/icon.png.
 class BrandMark extends StatelessWidget {
   const BrandMark({super.key, this.size = 96, this.onCream = true});
 
@@ -20,51 +18,17 @@ class BrandMark extends StatelessWidget {
         color: onCream ? const Color(0xFFF7F6F1) : Colors.transparent,
         borderRadius: BorderRadius.circular(size * 0.22),
       ),
-      child: CustomPaint(painter: _BrandPainter()),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(size * 0.22),
+        child: Image.asset(
+          'assets/icon.png',
+          width: size,
+          height: size,
+          fit: BoxFit.contain,
+        ),
+      ),
     );
   }
-}
-
-class _BrandPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width, h = size.height;
-    const blue = Color(0xFF1E5F8C);
-    const blueLight = Color(0xFF4FA3D9);
-
-    // Rising growth curve.
-    final curve = Paint()
-      ..color = blue
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = w * 0.055
-      ..strokeCap = StrokeCap.round;
-    final path = Path()
-      ..moveTo(w * 0.18, h * 0.78)
-      ..cubicTo(w * 0.38, h * 0.74, w * 0.5, h * 0.55, w * 0.82, h * 0.24);
-    canvas.drawPath(path, curve);
-
-    // Data dots on the curve.
-    final dot = Paint()..color = blueLight;
-    canvas.drawCircle(Offset(w * 0.18, h * 0.78), w * 0.045, dot);
-    canvas.drawCircle(Offset(w * 0.5, h * 0.55), w * 0.045, dot);
-    final endDot = Paint()..color = blue;
-    canvas.drawCircle(Offset(w * 0.82, h * 0.24), w * 0.07, endDot);
-    canvas.drawCircle(
-        Offset(w * 0.82, h * 0.24), w * 0.03, Paint()..color = const Color(0xFFF7F6F1));
-
-    // Measuring ticks along the left axis.
-    final tick = Paint()
-      ..color = blue.withValues(alpha: 0.35)
-      ..strokeWidth = w * 0.02
-      ..strokeCap = StrokeCap.round;
-    for (int i = 0; i < 5; i++) {
-      final y = h * (0.24 + i * 0.135);
-      canvas.drawLine(Offset(w * 0.12, y), Offset(w * 0.17, y), tick);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 /// The standard card surface used across screens (radius 12, 1px border, soft

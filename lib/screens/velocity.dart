@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import '../charts.dart';
+import '../settings.dart';
 import 'common.dart';
 
 /// Growth velocity (design 1f): compares two evaluations and shows Δ weight/
@@ -14,75 +15,47 @@ class VelocityScreen extends StatelessWidget {
     final p = AppPalette.of(context);
     return Scaffold(
       backgroundColor: p.background,
-      appBar: ScreenHeader(
+      appBar: const ScreenHeader(
         title: 'Velocidad de crecimiento',
         subtitle: 'Sofía Restrepo M. · 4 evaluaciones',
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
         children: [
-          SectionCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SectionLabel('Intervalo comparado'),
-                const SizedBox(height: 12),
-                Row(
+          _evalCards(context, p),
+          const SizedBox(height: 12),
+          ValueListenableBuilder<UnitSystem>(
+            valueListenable: unitSystemNotifier,
+            builder: (context, activeUnit, _) {
+              return IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Expanded(
-                      child: _evalBox(context,
-                          label: 'Evaluación 1',
-                          date: '15/02/2026',
-                          meas: '11.1 kg · 82.9 cm',
-                          selected: false),
+                      child: _deltaCard(context,
+                          accent: p.ok,
+                          label: 'Δ Peso',
+                          value: '+1.30',
+                          unit: activeUnit.weightUnit,
+                          detail: '7.2 g/día · 218 g/mes',
+                          chip: 'Vel. Z +0.34 · adecuada',
+                          chipStatus: ClinicalStatus.ok),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      child: Icon(Icons.arrow_forward, size: 16, color: p.primary),
-                    ),
+                    const SizedBox(width: 10),
                     Expanded(
-                      child: _evalBox(context,
-                          label: 'Evaluación 4',
-                          date: '15/08/2026',
-                          meas: '12.4 kg · 86.5 cm',
-                          selected: true),
+                      child: _deltaCard(context,
+                          accent: p.warn,
+                          label: 'Δ Talla',
+                          value: '+3.60',
+                          unit: activeUnit.heightUnit,
+                          detail: '7.3 cm/año esperado 9.1',
+                          chip: 'Vel. Z −1.42 · lenta',
+                          chipStatus: ClinicalStatus.warn),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                Text('Intervalo: 181 días (5.95 meses)',
-                    style: TextStyle(fontSize: 11, fontFamily: 'monospace', color: p.muted)),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  child: _deltaCard(context,
-                      accent: p.ok,
-                      label: 'Δ Peso',
-                      value: '+1.30',
-                      unit: 'kg',
-                      detail: '7.2 g/día · 218 g/mes',
-                      chip: 'Vel. Z +0.34 · adecuada',
-                      chipStatus: ClinicalStatus.ok),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _deltaCard(context,
-                      accent: p.warn,
-                      label: 'Δ Talla',
-                      value: '+3.60',
-                      unit: 'cm',
-                      detail: '7.3 cm/año esperado 9.1',
-                      chip: 'Vel. Z −1.42 · lenta',
-                      chipStatus: ClinicalStatus.warn),
-                ),
-              ],
-            ),
+              );
+            },
           ),
           const SizedBox(height: 12),
           SectionCard(
@@ -130,6 +103,43 @@ class VelocityScreen extends StatelessWidget {
             ),
           ),
           const Footer(),
+        ],
+      ),
+    );
+  }
+
+  Widget _evalCards(BuildContext context, AppPalette p) {
+    return SectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SectionLabel('Intervalo comparado'),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _evalBox(context,
+                    label: 'Evaluación 1',
+                    date: '15/02/2026',
+                    meas: '11.1 kg · 82.9 cm',
+                    selected: false),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: Icon(Icons.arrow_forward, size: 16, color: p.primary),
+              ),
+              Expanded(
+                child: _evalBox(context,
+                    label: 'Evaluación 4',
+                    date: '15/08/2026',
+                    meas: '12.4 kg · 86.5 cm',
+                    selected: true),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text('Intervalo: 181 días (5.95 meses)',
+              style: TextStyle(fontSize: 11, fontFamily: 'monospace', color: p.muted)),
         ],
       ),
     );

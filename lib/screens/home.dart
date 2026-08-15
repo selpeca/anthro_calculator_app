@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../data.dart';
 import '../widgets.dart';
-import '../main.dart' show themeModeNotifier;
 import 'common.dart';
 import 'calculator.dart';
 import 'velocity.dart';
 import 'patients.dart';
 import 'patient_detail.dart';
 import 'reference_status.dart';
+
+import '../settings.dart';
+import 'app_drawer.dart';
+import 'about_dialog.dart';
 
 /// Home / dashboard (design 1b): branded header, quick action, module grid and
 /// a preview of the patient database.
@@ -24,6 +27,7 @@ class HomeScreen extends StatelessWidget {
     final p = AppPalette.of(context);
     return Scaffold(
       backgroundColor: p.background,
+      drawer: const AppDrawer(),
       body: ListView(
         padding: EdgeInsets.zero,
         children: [
@@ -179,42 +183,43 @@ class _Header extends StatelessWidget {
       color: p.primary,
       padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 18, 16, 20),
+        padding: const EdgeInsets.fromLTRB(12, 14, 16, 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
                     children: [
-                      const Text('Anthro Calculator App',
+                      Builder(
+                        builder: (context) => IconButton(
+                          onPressed: () => Scaffold.of(context).openDrawer(),
+                          icon: const Icon(Icons.menu_rounded, color: Colors.white, size: 26),
+                          tooltip: 'Abrir Menú Principal',
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          'Anthro Calculator App',
                           style: TextStyle(
-                            fontSize: 19,
+                            fontSize: 17,
                             fontWeight: FontWeight.w700,
                             color: Colors.white,
                             letterSpacing: -0.3,
-                          )),
-                      const SizedBox(height: 3),
-                      Text('Antropometría pediátrica clínica',
-                          style: TextStyle(
-                              fontSize: 12, color: Colors.white.withValues(alpha: 0.75))),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ],
                   ),
                 ),
-                ValueListenableBuilder<ThemeMode>(
-                  valueListenable: themeModeNotifier,
-                  builder: (context, mode, _) {
-                    final dark = Theme.of(context).brightness == Brightness.dark;
-                    return ThemeTogglePill(
-                      isDark: dark,
-                      onChanged: (newIsDark) {
-                        themeModeNotifier.value =
-                            newIsDark ? ThemeMode.dark : ThemeMode.light;
-                      },
-                    );
-                  },
+                IconButton(
+                  onPressed: () => showAboutAppDialog(context),
+                  icon: const Icon(Icons.info_outline_rounded, color: Colors.white, size: 24),
+                  tooltip: 'Acerca de Anthro Calculator',
                 ),
               ],
             ),
@@ -231,6 +236,17 @@ class _Header extends StatelessWidget {
                     background: const Color(0xFF1F8A5B).withValues(alpha: 0.22),
                     borderColor: const Color(0xFF8CDEBA).withValues(alpha: 0.45),
                   ),
+                ),
+                const SizedBox(width: 8),
+                ValueListenableBuilder<UnitSystem>(
+                  valueListenable: unitSystemNotifier,
+                  builder: (context, unit, _) {
+                    return HeaderPill(
+                      text: unit == UnitSystem.metric ? 'Métrico (kg, cm)' : 'Imperial (lb, in)',
+                      textColor: Colors.white.withValues(alpha: 0.9),
+                      background: Colors.white.withValues(alpha: 0.12),
+                    );
+                  },
                 ),
               ],
             ),

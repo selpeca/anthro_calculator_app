@@ -13,6 +13,7 @@ import 'results.dart';
 
 /// Reloj por defecto (constante, para poder usarlo en el constructor const).
 DateTime _systemNow() => DateTime.now();
+import '../settings.dart';
 
 class CalculatorScreen extends StatefulWidget {
   const CalculatorScreen({super.key, this.clock = _systemNow});
@@ -341,29 +342,34 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                               fontWeight: FontWeight.w500,
                               color: posWarn ? p.warnText : p.ok)),
                       const SizedBox(height: 11),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: _numberField(
-                              label: 'Peso',
-                              controller: _peso,
-                              unit: 'kg',
-                              state: pesoState,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _numberField(
-                              label: _pos == MeasurePosition.standing
-                                  ? 'Talla (de pie)'
-                                  : 'Longitud (acostado)',
-                              controller: _talla,
-                              unit: 'cm',
-                              state: tallaState,
-                            ),
-                          ),
-                        ],
+                      ValueListenableBuilder<UnitSystem>(
+                        valueListenable: unitSystemNotifier,
+                        builder: (context, activeUnit, _) {
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: _numberField(
+                                  label: 'Peso',
+                                  controller: _peso,
+                                  unit: activeUnit.weightUnit,
+                                  state: pesoState,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _numberField(
+                                  label: _pos == MeasurePosition.standing
+                                      ? 'Talla (de pie)'
+                                      : 'Longitud (acostado)',
+                                  controller: _talla,
+                                  unit: activeUnit.heightUnit,
+                                  state: tallaState,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
                       ),
                       const SizedBox(height: 11),
                       Row(
