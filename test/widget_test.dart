@@ -101,4 +101,37 @@ void main() {
     await tester.pumpAndSettle();
     expect(isDark, isTrue);
   });
+
+  testWidgets('el botón Limpiar vacía los textfield excepto f. medición que pone la fecha actual', (tester) async {
+    final fixedClock = () => DateTime(2026, 8, 15);
+    await tester.pumpWidget(_wrap(
+      CalculatorScreen(clock: fixedClock),
+    ));
+    await tester.pump();
+
+    // Modificamos F. medición y F. nacimiento y agregamos PC
+    final textFields = find.byType(TextField);
+    await tester.enterText(textFields.at(0), '14/05/2024'); // F. nacimiento
+    await tester.enterText(textFields.at(1), '01/01/2025'); // F. medición
+    await tester.enterText(textFields.at(4), '45.0');       // PC
+    await tester.pumpAndSettle();
+
+    // Pulsamos "Limpiar"
+    await tester.tap(find.widgetWithText(SecondaryButton, 'Limpiar'));
+    await tester.pumpAndSettle();
+
+    // Verificamos que F. nacimiento, Peso, Talla y PC queden vacíos,
+    // mientras F. medición vuelve a la fecha actual por defecto ("15/08/2026").
+    final birthField = tester.widget<TextField>(textFields.at(0));
+    final measField = tester.widget<TextField>(textFields.at(1));
+    final pesoField = tester.widget<TextField>(textFields.at(2));
+    final tallaField = tester.widget<TextField>(textFields.at(3));
+    final pcField = tester.widget<TextField>(textFields.at(4));
+
+    expect(birthField.controller?.text, '');
+    expect(measField.controller?.text, '15/08/2026');
+    expect(pesoField.controller?.text, '');
+    expect(tallaField.controller?.text, '');
+    expect(pcField.controller?.text, '');
+  });
 }

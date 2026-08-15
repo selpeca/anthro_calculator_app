@@ -73,18 +73,19 @@ void main() {
       expect(normalCdf(-1.96), closeTo(0.025, 1e-4));
     });
 
-    test('percentileFromZ reproduce los pares del diseño', () {
-      expect(percentileFromZ(-0.42), 34);
-      expect(percentileFromZ(-1.15), 13);
-      expect(percentileFromZ(0.31), 62);
-      expect(percentileFromZ(0.28), 61);
-      expect(percentileFromZ(-2.30), 1);
+    test('percentileFromZ reproduce los valores de porcentaje del diseño', () {
+      expect(percentileFromZ(-0.42), closeTo(33.72, 0.01));
+      expect(percentileFromZ(-1.15), closeTo(12.51, 0.01));
+      expect(percentileFromZ(0.31), closeTo(62.17, 0.01));
+      expect(percentileFromZ(0.28), closeTo(61.03, 0.01));
+      expect(percentileFromZ(-2.30), closeTo(1.07, 0.01));
     });
 
-    test('etiquetas de percentil en los extremos', () {
-      expect(percentileLabel(-3.0), '<1');
-      expect(percentileLabel(3.0), '>99');
-      expect(percentileLabel(0), '50');
+    test('etiquetas de percentil formateadas a 2 decimales y en los extremos', () {
+      expect(percentileLabel(-4.0), '<0.01');
+      expect(percentileLabel(4.0), '>99.99');
+      expect(percentileLabel(0), '50.00');
+      expect(percentileLabel(-0.42), '33.72');
     });
   });
 

@@ -2,7 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'theme.dart';
 
-/// The brand logo icon using assets/icon.png.
+/// The brand logo icon supporting light and dark theme assets.
 class BrandMark extends StatelessWidget {
   const BrandMark({super.key, this.size = 96, this.onCream = true});
 
@@ -11,17 +11,21 @@ class BrandMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    final iconPath = p.isDark ? 'assets/icon_dark.png' : 'assets/icon_light.png';
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: onCream ? const Color(0xFFF7F6F1) : Colors.transparent,
+        color: onCream
+            ? (p.isDark ? const Color(0xFF1E293B) : const Color(0xFFF7F6F1))
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(size * 0.22),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(size * 0.22),
         child: Image.asset(
-          'assets/icon.png',
+          iconPath,
           width: size,
           height: size,
           fit: BoxFit.contain,
@@ -297,7 +301,7 @@ class InitialsAvatar extends StatelessWidget {
 /// A percentile bar with a dot marker, colored by status.
 class PercentileBar extends StatelessWidget {
   const PercentileBar({super.key, required this.percentile, required this.color});
-  final int percentile;
+  final double percentile;
   final Color color;
 
   @override

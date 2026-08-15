@@ -87,13 +87,13 @@ double _erf(double x) {
 /// Porcentaje (0–100) correspondiente al Z-score `z`.
 double percentFromZ(double z) => normalCdf(z) * 100;
 
-/// Percentil entero (0–100) del Z-score `z`.
-int percentileFromZ(double z) => percentFromZ(z).round().clamp(0, 100);
+/// Percentil (0–100) del Z-score `z`.
+double percentileFromZ(double z) => percentFromZ(z).clamp(0, 100);
 
-/// Etiqueta de percentil con los extremos `<1` y `>99` del diseño.
+/// Etiqueta de percentil con 2 decimales y los extremos `<0.01` y `>99.99`.
 String percentileLabel(double z) {
   final pct = percentFromZ(z);
-  if (pct < 0.5) return '<1';
-  if (pct > 99.5) return '>99';
-  return pct.round().toString();
+  if (pct < 0.01) return '<0.01';
+  if (pct > 99.99) return '>99.99';
+  return pct.toStringAsFixed(2);
 }

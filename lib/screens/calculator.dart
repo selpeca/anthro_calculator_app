@@ -10,10 +10,10 @@ import '../anthro/reference.dart';
 import '../reference/reference_repository.dart';
 import 'common.dart';
 import 'results.dart';
+import '../settings.dart';
 
 /// Reloj por defecto (constante, para poder usarlo en el constructor const).
 DateTime _systemNow() => DateTime.now();
-import '../settings.dart';
 
 class CalculatorScreen extends StatefulWidget {
   const CalculatorScreen({super.key, this.clock = _systemNow});
@@ -283,34 +283,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 12),
-                // ── Reference standard ─────────────────────────
-                SectionCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          SectionLabel('Estándar de referencia'),
-                          Text('Detalle',
-                              style: TextStyle(
-                                  fontSize: 11, fontWeight: FontWeight.w500, color: p.primary)),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      SegmentedControl(
-                        options: const ['OMS', 'Colombia'],
-                        selectedIndex: _ref == RefStandard.oms ? 0 : 1,
-                        onChanged: (i) => setState(
-                            () => _ref = i == 0 ? RefStandard.oms : RefStandard.colombia),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(_ref.note,
-                          style: TextStyle(fontSize: 11.5, height: 1.4, color: p.muted)),
-                    ],
-                  ),
-                ),
+                
                 const SizedBox(height: 12),
                 // ── Measurements ───────────────────────────────
                 SectionCard(
@@ -480,6 +453,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                     _peso.clear();
                     _talla.clear();
                     _pc.clear();
+                    _birth.clear();
+                    _meas.text = formatDmy(dateOnly(widget.clock()));
                   });
                 }),
                 const SizedBox(width: 10),

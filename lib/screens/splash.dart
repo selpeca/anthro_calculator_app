@@ -70,7 +70,6 @@ class _SplashScreenState extends State<SplashScreen>
                             width: 210,
                             height: 210,
                             decoration: BoxDecoration(
-                              color: p.isDark ? const Color(0xFFF7F6F1) : Colors.transparent,
                               borderRadius: BorderRadius.circular(46),
                               boxShadow: p.isDark
                                   ? [
@@ -84,7 +83,7 @@ class _SplashScreenState extends State<SplashScreen>
                             ),
                             clipBehavior: Clip.antiAlias,
                             child: Image.asset(
-                              'assets/icon.png',
+                              p.isDark ? 'assets/icon_dark.png' : 'assets/icon_light.png',
                               fit: BoxFit.cover,
                             ),
                           ),

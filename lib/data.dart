@@ -34,7 +34,7 @@ class Indicator {
 
   final String name;
   final double? z;
-  final int? percentile;
+  final double? percentile;
   final String? percentileLabel;
   final String classification;
   final ClinicalStatus status;
@@ -43,7 +43,7 @@ class Indicator {
   final String? deficitNote;
 
   String get zLabel =>
-      z == null ? '—' : '${z! > 0 ? '+' : '−'}${z!.abs().toStringAsFixed(2)}';
+      z == null ? '—' : '${z! > 0 ? '+' : '−'}${z!.abs().toStringAsFixed(3)}';
 
   /// Subtítulo de la tarjeta: percentil + clasificación, o solo clasificación
   /// cuando no hay percentil (no interpretable).
@@ -76,7 +76,7 @@ const List<Patient> kSamplePatients = [
     initials: 'SR',
     name: 'Sofía Restrepo M.',
     meta: 'F · 2 a 3 m · 12.4 kg · 86.5 cm',
-    tag: 'PC/E −2.30',
+    tag: 'PC/E −2.300',
     status: ClinicalStatus.severe,
     date: 'hoy',
   ),
@@ -116,7 +116,7 @@ const List<Patient> kSamplePatients = [
     initials: 'SP',
     name: 'Samuel Peña L.',
     meta: 'M · 3 a 7 m · 19.8 kg · 98.0 cm',
-    tag: 'IMC/E +2.14',
+    tag: 'IMC/E +2.140',
     status: ClinicalStatus.severe,
     date: '7 ago',
   ),
@@ -144,28 +144,28 @@ const List<Measurement> kSampleHistory = [
     date: '15 AGO 26',
     summary: '12.4 kg · 86.5 cm · PC 44.1',
     age: '2 a 3 m · 823 d · OMS',
-    z: 'Z −0.42',
+    z: 'Z −0.420',
     status: ClinicalStatus.ok,
   ),
   Measurement(
     date: '15 JUN 26',
     summary: '12.0 kg · 85.4 cm · PC 43.9',
     age: '2 a 1 m · 762 d · OMS',
-    z: 'Z −0.50',
+    z: 'Z −0.500',
     status: ClinicalStatus.ok,
   ),
   Measurement(
     date: '15 ABR 26',
     summary: '11.6 kg · 84.3 cm · PC 43.6',
     age: '1 a 11 m · 701 d · OMS',
-    z: 'Z −0.58',
+    z: 'Z −0.580',
     status: ClinicalStatus.warn,
   ),
   Measurement(
     date: '15 FEB 26',
     summary: '11.1 kg · 82.9 cm · PC 43.2',
     age: '1 a 9 m · 642 d · OMS',
-    z: 'Z −0.75',
+    z: 'Z −0.750',
     status: ClinicalStatus.warn,
   ),
 ];

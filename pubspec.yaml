@@ -26,26 +26,30 @@ flutter:
   uses-material-design: true
   assets:
     - assets/icon.png
+    - assets/icon_light.png
+    - assets/icon_dark.png
     - assets/reference/
     - assets/reference/oms-2006/
     - assets/reference/oms-2006/tables/
     - assets/reference/col-2465/
 
 flutter_launcher_icons:
-  image_path: "assets/icon.png"
+  image_path: "assets/icon_light.png"
   android: true
   ios: true
   adaptive_icon_background: "#F5F4EF"
-  adaptive_icon_foreground: "assets/icon.png"
+  adaptive_icon_foreground: "assets/icon_light.png"
 
 flutter_native_splash:
   color: "F5F4EF"
   color_dark: "0E1620"
-  image: "assets/icon.png"
+  image: "assets/icon_light.png"
+  image_dark: "assets/icon_dark.png"
   android: true
   ios: true
   web: false
   android_12:
     color: "F5F4EF"
     color_dark: "0E1620"
-    image: "assets/icon.png"
+    image: "assets/icon_light.png"
+    image_dark: "assets/icon_dark.png"
