@@ -134,52 +134,52 @@ class AppDrawer extends StatelessWidget {
                 const SizedBox(height: 12),
 
                 // ESTÁNDAR DE REFERENCIA
-                SectionCard(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.menu_book_outlined,
-                              size: 18, color: p.primary),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Patrón de Referencia',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: p.onSurface,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      ValueListenableBuilder<ReferenceStandard>(
-                        valueListenable: referenceStandardNotifier,
-                        builder: (context, currentStandard, _) {
-                          return SegmentedControl(
-                            options: const ['OMS 2006', 'Res. 2465 Colombia'],
-                            selectedIndex:
-                                currentStandard == ReferenceStandard.who ? 0 : 1,
-                            onChanged: (index) {
-                              referenceStandardNotifier.value = index == 0
-                                  ? ReferenceStandard.who
-                                  : ReferenceStandard.colombia;
-                            },
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Estándar para tabla de percentiles y Z-scores.',
-                        style: TextStyle(fontSize: 10.5, color: p.muted),
-                      ),
-                    ],
-                  ),
-                ),
+                // SectionCard(
+                //   padding: const EdgeInsets.all(12),
+                //   child: Column(
+                //     crossAxisAlignment: CrossAxisAlignment.start,
+                //     children: [
+                //       Row(
+                //         children: [
+                //           Icon(Icons.menu_book_outlined,
+                //               size: 18, color: p.primary),
+                //           const SizedBox(width: 8),
+                //           Text(
+                //             'Patrón de Referencia',
+                //             style: TextStyle(
+                //               fontSize: 13,
+                //               fontWeight: FontWeight.w600,
+                //               color: p.onSurface,
+                //             ),
+                //           ),
+                //         ],
+                //       ),
+                //       const SizedBox(height: 10),
+                //       ValueListenableBuilder<ReferenceStandard>(
+                //         valueListenable: referenceStandardNotifier,
+                //         builder: (context, currentStandard, _) {
+                //           return SegmentedControl(
+                //             options: const ['OMS 2006', 'Res. 2465 Colombia'],
+                //             selectedIndex:
+                //                 currentStandard == ReferenceStandard.who ? 0 : 1,
+                //             onChanged: (index) {
+                //               referenceStandardNotifier.value = index == 0
+                //                   ? ReferenceStandard.who
+                //                   : ReferenceStandard.colombia;
+                //             },
+                //           );
+                //         },
+                //       ),
+                //       const SizedBox(height: 6),
+                //       Text(
+                //         'Estándar para tabla de percentiles y Z-scores.',
+                //         style: TextStyle(fontSize: 10.5, color: p.muted),
+                //       ),
+                //     ],
+                //   ),
+                // ),
 
-                const SizedBox(height: 18),
+                // const SizedBox(height: 18),
                 const ThinDivider(),
                 const SizedBox(height: 14),
 
