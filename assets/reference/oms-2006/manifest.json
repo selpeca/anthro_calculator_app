@@ -1,0 +1,551 @@
+{
+  "schemaVersion": 1,
+  "standardId": "oms-2006",
+  "displayName": "OMS 2006 · 0–5 años",
+  "version": "2006.1",
+  "generatedAt": "2026-08-15",
+  "source": "WHO Child Growth Standards — expanded z-score tables (who.int), 2006/2007",
+  "validity": {
+    "weightForAge": {
+      "axis": "ageDays",
+      "min": 0,
+      "max": 1856
+    },
+    "statureForAge": {
+      "axis": "ageDays",
+      "min": 0,
+      "max": 1856
+    },
+    "bmiForAge": {
+      "axis": "ageDays",
+      "min": 0,
+      "max": 1856
+    },
+    "headCircumferenceForAge": {
+      "axis": "ageDays",
+      "min": 0,
+      "max": 1856
+    },
+    "weightForStature": {
+      "axis": "statureCm",
+      "length": {
+        "min": 45.0,
+        "max": 110.0
+      },
+      "height": {
+        "min": 65.0,
+        "max": 120.0
+      }
+    }
+  },
+  "tables": [
+    {
+      "kind": "weightForAge",
+      "sex": "boys",
+      "axis": "ageDays",
+      "file": "tables/wfa_boys.csv",
+      "rows": 1857,
+      "sha256": "e37abf2e858def8997277b38f483005ab96487e95394532882b46e505b1f9419",
+      "sdChecks": [
+        {
+          "key": 0,
+          "sd3neg": 2.08,
+          "sd2neg": 2.459,
+          "sd2": 4.419,
+          "sd3": 5.031
+        },
+        {
+          "key": 928,
+          "sd3neg": 9.421,
+          "sd2neg": 10.585,
+          "sd2": 16.977,
+          "sd3": 19.135
+        },
+        {
+          "key": 1856,
+          "sd3neg": 12.459,
+          "sd2neg": 14.175,
+          "sd2": 24.411,
+          "sd3": 28.171
+        }
+      ]
+    },
+    {
+      "kind": "weightForAge",
+      "sex": "girls",
+      "axis": "ageDays",
+      "file": "tables/wfa_girls.csv",
+      "rows": 1857,
+      "sha256": "3f0a1d7a2cd8d74c40ec39a386f66e3ba4b06a44dbfbe4c32367b251cacbf0e4",
+      "sdChecks": [
+        {
+          "key": 0,
+          "sd3neg": 2.033,
+          "sd2neg": 2.395,
+          "sd2": 4.23,
+          "sd3": 4.793
+        },
+        {
+          "key": 928,
+          "sd3neg": 8.952,
+          "sd2neg": 10.042,
+          "sd2": 16.646,
+          "sd3": 19.144
+        },
+        {
+          "key": 1856,
+          "sd3neg": 12.145,
+          "sd2neg": 13.854,
+          "sd2": 25.19,
+          "sd3": 29.903
+        }
+      ]
+    },
+    {
+      "kind": "statureForAge",
+      "sex": "boys",
+      "axis": "ageDays",
+      "file": "tables/lhfa_boys.csv",
+      "rows": 1857,
+      "sha256": "4914dd3b5d16b2eb9c6a3463c69e51381788471d22174bff19e9b735b2acebfb",
+      "sdChecks": [
+        {
+          "key": 0,
+          "sd3neg": 44.205,
+          "sd2neg": 46.098,
+          "sd2": 53.67,
+          "sd3": 55.564
+        },
+        {
+          "key": 928,
+          "sd3neg": 81.998,
+          "sd2neg": 85.429,
+          "sd2": 99.155,
+          "sd3": 102.586
+        },
+        {
+          "key": 1856,
+          "sd3neg": 96.488,
+          "sd2neg": 101.158,
+          "sd2": 119.836,
+          "sd3": 124.506
+        }
+      ]
+    },
+    {
+      "kind": "statureForAge",
+      "sex": "girls",
+      "axis": "ageDays",
+      "file": "tables/lhfa_girls.csv",
+      "rows": 1857,
+      "sha256": "6589517130349f1d476bf8a80b80ba27af2213ec57d9de63c25c8e9e1d334dec",
+      "sdChecks": [
+        {
+          "key": 0,
+          "sd3neg": 43.56,
+          "sd2neg": 45.422,
+          "sd2": 52.873,
+          "sd3": 54.736
+        },
+        {
+          "key": 928,
+          "sd3neg": 80.393,
+          "sd2neg": 83.947,
+          "sd2": 98.163,
+          "sd3": 101.716
+        },
+        {
+          "key": 1856,
+          "sd3neg": 95.562,
+          "sd2neg": 100.353,
+          "sd2": 119.517,
+          "sd3": 124.308
+        }
+      ]
+    },
+    {
+      "kind": "weightForStature",
+      "sex": "boys",
+      "axis": "statureCm",
+      "file": "tables/wfl_boys.csv",
+      "rows": 651,
+      "sha256": "a72f7d8b4a211c2e87224a0a104ee655cae223c777a9b75df9f5798f03dde342",
+      "subtype": "length",
+      "sdChecks": [
+        {
+          "key": 45.0,
+          "sd3neg": 1.877,
+          "sd2neg": 2.043,
+          "sd2": 2.951,
+          "sd3": 3.261
+        },
+        {
+          "key": 77.5,
+          "sd3neg": 7.865,
+          "sd2neg": 8.499,
+          "sd2": 11.858,
+          "sd3": 12.972
+        },
+        {
+          "key": 110.0,
+          "sd3neg": 14.211,
+          "sd2neg": 15.414,
+          "sd2": 21.888,
+          "sd3": 24.066
+        }
+      ]
+    },
+    {
+      "kind": "weightForStature",
+      "sex": "girls",
+      "axis": "statureCm",
+      "file": "tables/wfl_girls.csv",
+      "rows": 651,
+      "sha256": "ee612880633de73ded349e90927d533202cdd9c1ae365309a52632621f685d10",
+      "subtype": "length",
+      "sdChecks": [
+        {
+          "key": 45.0,
+          "sd3neg": 1.902,
+          "sd2neg": 2.066,
+          "sd2": 2.967,
+          "sd3": 3.275
+        },
+        {
+          "key": 77.5,
+          "sd3neg": 7.437,
+          "sd2neg": 8.078,
+          "sd2": 11.572,
+          "sd3": 12.765
+        },
+        {
+          "key": 110.0,
+          "sd3neg": 14.025,
+          "sd2neg": 15.289,
+          "sd2": 22.283,
+          "sd3": 24.708
+        }
+      ]
+    },
+    {
+      "kind": "weightForStature",
+      "sex": "boys",
+      "axis": "statureCm",
+      "file": "tables/wfh_boys.csv",
+      "rows": 551,
+      "sha256": "80060f319c278e00c21291aaf41399bb31d2bbd4e0434c5255d151ae7d281810",
+      "subtype": "height",
+      "sdChecks": [
+        {
+          "key": 65.0,
+          "sd3neg": 5.868,
+          "sd2neg": 6.335,
+          "sd2": 8.804,
+          "sd3": 9.619
+        },
+        {
+          "key": 92.5,
+          "sd3neg": 10.691,
+          "sd2neg": 11.523,
+          "sd2": 15.891,
+          "sd3": 17.325
+        },
+        {
+          "key": 120.0,
+          "sd3neg": 17.072,
+          "sd2neg": 18.624,
+          "sd2": 27.167,
+          "sd3": 30.107
+        }
+      ]
+    },
+    {
+      "kind": "weightForStature",
+      "sex": "girls",
+      "axis": "statureCm",
+      "file": "tables/wfh_girls.csv",
+      "rows": 551,
+      "sha256": "cd96f7954b194471c13f1a15adb9731e66cf4e767d4ed5fc74e3355b89e5bbb1",
+      "subtype": "height",
+      "sdChecks": [
+        {
+          "key": 65.0,
+          "sd3neg": 5.583,
+          "sd2neg": 6.071,
+          "sd2": 8.746,
+          "sd3": 9.664
+        },
+        {
+          "key": 92.5,
+          "sd3neg": 10.277,
+          "sd2neg": 11.159,
+          "sd2": 15.964,
+          "sd3": 17.603
+        },
+        {
+          "key": 120.0,
+          "sd3neg": 17.256,
+          "sd2neg": 18.878,
+          "sd2": 27.991,
+          "sd3": 31.199
+        }
+      ]
+    },
+    {
+      "kind": "bmiForAge",
+      "sex": "boys",
+      "axis": "ageDays",
+      "file": "tables/bfa_boys.csv",
+      "rows": 1857,
+      "sha256": "b89ae7be8397dbf344dc762248289880746c72c15315af4539f68a7ad0825306",
+      "sdChecks": [
+        {
+          "key": 0,
+          "sd3neg": 10.184,
+          "sd2neg": 11.133,
+          "sd2": 16.326,
+          "sd3": 18.1
+        },
+        {
+          "key": 928,
+          "sd3neg": 12.604,
+          "sd2neg": 13.553,
+          "sd2": 18.558,
+          "sd3": 20.213
+        },
+        {
+          "key": 1856,
+          "sd3neg": 11.943,
+          "sd2neg": 12.88,
+          "sd2": 18.304,
+          "sd3": 20.307
+        }
+      ]
+    },
+    {
+      "kind": "bmiForAge",
+      "sex": "girls",
+      "axis": "ageDays",
+      "file": "tables/bfa_girls.csv",
+      "rows": 1857,
+      "sha256": "f667d707b03ed683c09097162ed93486f21f9e6f7ec6d2ec61819c282510eca6",
+      "sdChecks": [
+        {
+          "key": 0,
+          "sd3neg": 10.122,
+          "sd2neg": 11.091,
+          "sd2": 16.071,
+          "sd3": 17.657
+        },
+        {
+          "key": 928,
+          "sd3neg": 12.246,
+          "sd2neg": 13.205,
+          "sd2": 18.531,
+          "sd3": 20.397
+        },
+        {
+          "key": 1856,
+          "sd3neg": 11.635,
+          "sd2neg": 12.683,
+          "sd2": 18.82,
+          "sd3": 21.097
+        }
+      ]
+    },
+    {
+      "kind": "headCircumferenceForAge",
+      "sex": "boys",
+      "axis": "ageDays",
+      "file": "tables/hcfa_boys.csv",
+      "rows": 1857,
+      "sha256": "470e31d8c8535b851eb2c582f3de15735090c4f46b5829b757423328d6e2edda",
+      "sdChecks": [
+        {
+          "key": 0,
+          "sd3neg": 30.651,
+          "sd2neg": 31.921,
+          "sd2": 37.002,
+          "sd3": 38.273
+        },
+        {
+          "key": 928,
+          "sd3neg": 44.797,
+          "sd2neg": 46.192,
+          "sd2": 51.774,
+          "sd3": 53.17
+        },
+        {
+          "key": 1856,
+          "sd3neg": 46.285,
+          "sd2neg": 47.781,
+          "sd2": 53.769,
+          "sd3": 55.266
+        }
+      ]
+    },
+    {
+      "kind": "headCircumferenceForAge",
+      "sex": "girls",
+      "axis": "ageDays",
+      "file": "tables/hcfa_girls.csv",
+      "rows": 1857,
+      "sha256": "0a0186012cf7b58a2025f6252e8eea81050f35dfa0ad42dce5435b1729d88565",
+      "sdChecks": [
+        {
+          "key": 0,
+          "sd3neg": 30.326,
+          "sd2neg": 31.51,
+          "sd2": 36.247,
+          "sd3": 37.432
+        },
+        {
+          "key": 928,
+          "sd3neg": 43.767,
+          "sd2neg": 45.174,
+          "sd2": 50.8,
+          "sd3": 52.206
+        },
+        {
+          "key": 1856,
+          "sd3neg": 45.696,
+          "sd2neg": 47.119,
+          "sd2": 52.811,
+          "sd3": 54.234
+        }
+      ]
+    }
+  ],
+  "classification": {
+    "weightForAge": [
+      {
+        "ltZ": -3,
+        "label": "Peso muy bajo para la edad"
+      },
+      {
+        "ltZ": -2,
+        "label": "Peso bajo para la edad"
+      },
+      {
+        "ltZ": -1,
+        "label": "Riesgo de peso bajo para la edad"
+      },
+      {
+        "ltZ": 1,
+        "label": "Peso adecuado para la edad"
+      },
+      {
+        "ltZ": 2,
+        "label": "Peso elevado para la edad"
+      },
+      {
+        "ltZ": null,
+        "label": "Peso muy elevado para la edad"
+      }
+    ],
+    "statureForAge": [
+      {
+        "ltZ": -3,
+        "label": "Talla baja severa para la edad"
+      },
+      {
+        "ltZ": -2,
+        "label": "Talla baja para la edad"
+      },
+      {
+        "ltZ": -1,
+        "label": "Riesgo de talla baja"
+      },
+      {
+        "ltZ": null,
+        "label": "Talla adecuada para la edad"
+      }
+    ],
+    "weightForStature": [
+      {
+        "ltZ": -3,
+        "label": "Desnutrición aguda severa"
+      },
+      {
+        "ltZ": -2,
+        "label": "Desnutrición aguda moderada"
+      },
+      {
+        "ltZ": -1,
+        "label": "Riesgo de desnutrición aguda"
+      },
+      {
+        "ltZ": 1,
+        "label": "Peso adecuado para la talla"
+      },
+      {
+        "ltZ": 2,
+        "label": "Riesgo de sobrepeso"
+      },
+      {
+        "ltZ": 3,
+        "label": "Sobrepeso"
+      },
+      {
+        "ltZ": null,
+        "label": "Obesidad"
+      }
+    ],
+    "bmiForAge": [
+      {
+        "ltZ": -3,
+        "label": "Delgadez severa"
+      },
+      {
+        "ltZ": -2,
+        "label": "Delgadez"
+      },
+      {
+        "ltZ": -1,
+        "label": "Riesgo de delgadez"
+      },
+      {
+        "ltZ": 1,
+        "label": "Estado nutricional normal"
+      },
+      {
+        "ltZ": 2,
+        "label": "Riesgo de sobrepeso"
+      },
+      {
+        "ltZ": 3,
+        "label": "Sobrepeso"
+      },
+      {
+        "ltZ": null,
+        "label": "Obesidad"
+      }
+    ],
+    "headCircumferenceForAge": [
+      {
+        "ltZ": -3,
+        "label": "Microcefalia severa"
+      },
+      {
+        "ltZ": -2,
+        "label": "Microcefalia — requiere valoración"
+      },
+      {
+        "ltZ": -1,
+        "label": "Perímetro cefálico en límite inferior"
+      },
+      {
+        "ltZ": 1,
+        "label": "Perímetro cefálico normal"
+      },
+      {
+        "ltZ": 2,
+        "label": "Perímetro cefálico en límite superior"
+      },
+      {
+        "ltZ": null,
+        "label": "Macrocefalia — requiere valoración"
+      }
+    ]
+  }
+}

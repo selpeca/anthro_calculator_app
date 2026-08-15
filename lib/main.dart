@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'theme.dart';
 import 'screens/splash.dart';
 
@@ -30,6 +31,11 @@ class AnthroApp extends StatelessWidget {
           themeMode: mode,
           theme: buildTheme(AppPalette.light),
           darkTheme: buildTheme(AppPalette.dark),
+          // Español por defecto: el selector de fecha usa dd/MM/aaaa y textos en
+          // español, coherente con los campos de fecha de la calculadora.
+          locale: const Locale('es'),
+          localizationsDelegates: GlobalMaterialLocalizations.delegates,
+          supportedLocales: const [Locale('es'), Locale('en')],
           home: const SplashScreen(),
         );
       },

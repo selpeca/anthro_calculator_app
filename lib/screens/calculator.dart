@@ -1,12 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../theme.dart';
 import '../data.dart';
 import '../widgets.dart';
+import '../anthro/age.dart';
+import '../anthro/indicators.dart';
+import '../anthro/plausibility.dart';
+import '../anthro/reference.dart';
+import '../reference/reference_repository.dart';
 import 'common.dart';
 import 'results.dart';
 
+/// Reloj por defecto (constante, para poder usarlo en el constructor const).
+DateTime _systemNow() => DateTime.now();
+
 class CalculatorScreen extends StatefulWidget {
-  const CalculatorScreen({super.key});
+  const CalculatorScreen({super.key, this.clock = _systemNow});
+
+  /// Reloj inyectable para pruebas; por defecto la hora real.
+  final DateTime Function() clock;
 
   @override
   State<CalculatorScreen> createState() => _CalculatorScreenState();
@@ -15,43 +27,170 @@ class CalculatorScreen extends StatefulWidget {
 class _CalculatorScreenState extends State<CalculatorScreen> {
   final _peso = TextEditingController(text: '12.4');
   final _talla = TextEditingController(text: '86.5');
+  final _pc = TextEditingController();
+  final _birth = TextEditingController();
+  final _meas = TextEditingController();
   RefStandard _ref = RefStandard.oms;
   bool _female = true;
   MeasurePosition _pos = MeasurePosition.standing;
   bool _save = true;
 
-  static const double _ageMonths = 27.0;
+  late final DateTime _today;
 
   @override
   void initState() {
     super.initState();
-    _peso.addListener(() => setState(() {}));
-    _talla.addListener(() => setState(() {}));
+    _today = dateOnly(widget.clock());
+    _meas.text = formatDmy(_today);
+    for (final c in [_peso, _talla, _pc, _birth, _meas]) {
+      c.addListener(() => setState(() {}));
+    }
   }
 
   @override
   void dispose() {
-    _peso.dispose();
-    _talla.dispose();
+    for (final c in [_peso, _talla, _pc, _birth, _meas]) {
+      c.dispose();
+    }
     super.dispose();
   }
 
   double? get _pesoVal => double.tryParse(_peso.text.replaceAll(',', '.'));
   double? get _tallaVal => double.tryParse(_talla.text.replaceAll(',', '.'));
+  double? get _pcVal =>
+      _pc.text.trim().isEmpty ? null : double.tryParse(_pc.text.replaceAll(',', '.'));
+
+  DateTime? get _birthDate => parseDmy(_birth.text);
+  DateTime? get _measDate => parseDmy(_meas.text);
+
+  Age? get _age {
+    final b = _birthDate;
+    final m = _measDate;
+    if (b == null || m == null || m.isBefore(b)) return null;
+    return ageBetween(b, m);
+  }
+
+  Sex get _sex => _female ? Sex.female : Sex.male;
+
+  String get _standardId =>
+      _ref == RefStandard.oms ? 'oms-2006' : 'col-2465';
+
+  GrowthReference? get _reference => ReferenceRepository.reference(_standardId);
+
+  String? get _birthError {
+    final t = _birth.text.trim();
+    if (t.length < 10) return null; // no regañar mientras se escribe
+    final b = parseDmy(t);
+    if (b == null) return 'Formato dd/mm/aaaa';
+    if (b.isAfter(_today)) return 'La fecha no puede ser futura';
+    final m = _measDate;
+    if (m != null && b.isAfter(m)) return 'Nacimiento posterior a la medición';
+    return null;
+  }
+
+  String? get _measError {
+    final t = _meas.text.trim();
+    if (t.length < 10) return null;
+    final m = parseDmy(t);
+    if (m == null) return 'Formato dd/mm/aaaa';
+    if (m.isAfter(_today)) return 'La medición no puede ser futura';
+    return null;
+  }
+
+  bool get _datesValid {
+    final b = _birthDate;
+    final m = _measDate;
+    return b != null &&
+        m != null &&
+        !b.isAfter(_today) &&
+        !m.isAfter(_today) &&
+        !b.isAfter(m);
+  }
+
+  bool get _canCalculate =>
+      _datesValid && (_pesoVal ?? 0) > 0 && (_tallaVal ?? 0) > 0;
+
+  ReferenceTable? _tableFor(IndicatorKind kind) {
+    final ref = _reference;
+    final age = _age;
+    if (ref == null || age == null) return null;
+    return ref.tableFor(kind, _sex, ageDays: age.days);
+  }
+
+  DateTime _clamp(DateTime d, DateTime first, DateTime last) =>
+      d.isBefore(first) ? first : (d.isAfter(last) ? last : d);
+
+  Future<void> _pickBirth() async {
+    final first = DateTime(_today.year - 20);
+    final last = _measDate ?? _today;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _clamp(_birthDate ?? last, first, last),
+      firstDate: first,
+      lastDate: last,
+    );
+    if (picked != null) _birth.text = formatDmy(picked);
+  }
+
+  Future<void> _pickMeas() async {
+    final first = _birthDate ?? DateTime(_today.year - 20);
+    final last = _today;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _clamp(_measDate ?? last, first, last),
+      firstDate: first,
+      lastDate: last,
+    );
+    if (picked != null) _meas.text = formatDmy(picked);
+  }
+
+  void _calculate() {
+    final ref = _reference;
+    if (ref == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('No hay tablas de referencia cargadas'),
+      ));
+      return;
+    }
+    final result = computeAnthro(
+      AnthroInput(
+        birthDate: _birthDate!,
+        measurementDate: _measDate!,
+        sex: _sex,
+        weightKg: _pesoVal!,
+        statureCm: _tallaVal!,
+        position: _pos,
+        headCircumferenceCm: _pcVal,
+        standardId: ref.standardId,
+      ),
+      ref,
+    );
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => ResultsScreen(result: result),
+    ));
+  }
 
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    final pesoState = Anthro.weightState(_pesoVal);
-    final tallaState = Anthro.heightState(_tallaVal);
+    final age = _age;
+    final pesoState = weightPlausibility(_pesoVal,
+        table: _tableFor(IndicatorKind.weightForAge), ageDays: age?.days);
+    final tallaState = staturePlausibility(_tallaVal,
+        table: _tableFor(IndicatorKind.statureForAge), ageDays: age?.days);
+    final pcState = headPlausibility(_pcVal,
+        table: _tableFor(IndicatorKind.headCircumferenceForAge),
+        ageDays: age?.days);
     final imc = Anthro.imc(_pesoVal, _tallaVal);
-    final (posNote, posWarn) = Anthro.positionNote(_pos, _ageMonths);
+    final (posNote, posWarn) = Anthro.positionNote(_pos, age?.decimalMonths);
 
     return Scaffold(
       backgroundColor: p.background,
       appBar: ScreenHeader(
         title: 'Cálculo antropométrico',
-        subtitle: 'Sofía Restrepo M. · ${_female ? 'F' : 'M'}',
+        subtitle: age == null
+            ? (_female ? 'F' : 'M')
+            : '${_female ? 'F' : 'M'} · ${age.label}',
         statusDot: p.ok,
       ),
       body: Column(
@@ -68,10 +207,25 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                       SectionLabel('Identificación y edad'),
                       const SizedBox(height: 12),
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(child: _dateField('F. nacimiento', '14/05/2024')),
+                          Expanded(
+                            child: _dateField(
+                              label: 'F. nacimiento',
+                              controller: _birth,
+                              onPick: _pickBirth,
+                              error: _birthError,
+                            ),
+                          ),
                           const SizedBox(width: 10),
-                          Expanded(child: _dateField('F. medición', '15/08/2026')),
+                          Expanded(
+                            child: _dateField(
+                              label: 'F. medición',
+                              controller: _meas,
+                              onPick: _pickMeas,
+                              error: _measError,
+                            ),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 12),
@@ -90,14 +244,14 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                                 children: [
                                   SectionLabel('Edad calculada', color: p.primary),
                                   const SizedBox(height: 3),
-                                  Text('2 a 3 m 1 d',
+                                  Text(age?.label ?? '—',
                                       style: TextStyle(
                                           fontSize: 17,
                                           fontWeight: FontWeight.w700,
                                           fontFeatures: kTabular,
                                           color: p.onPrimaryTint)),
                                   const SizedBox(height: 2),
-                                  Text('823 días de vida · 27.0 meses',
+                                  Text(age?.detail ?? 'Ingrese las fechas',
                                       style: TextStyle(
                                           fontSize: 11,
                                           fontFamily: 'monospace',
@@ -216,58 +370,12 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                SectionLabel('Perímetro cefálico'),
-                                const SizedBox(height: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-                                  decoration: BoxDecoration(
-                                    color: p.warnBg,
-                                    borderRadius: BorderRadius.circular(Radii.control),
-                                    border: Border.all(color: p.warn, width: 1.5),
-                                  ),
-                                  child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                                    textBaseline: TextBaseline.alphabetic,
-                                    children: [
-                                      Expanded(
-                                        child: Text('44.1',
-                                            style: TextStyle(
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.w600,
-                                                fontFeatures: kTabular,
-                                                color: p.warnText)),
-                                      ),
-                                      Text('cm',
-                                          style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w500,
-                                              color: p.warnText)),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Row(
-                                  children: [
-                                    Container(
-                                      width: 5,
-                                      height: 5,
-                                      decoration: BoxDecoration(color: p.warn, shape: BoxShape.circle),
-                                    ),
-                                    const SizedBox(width: 5),
-                                    Expanded(
-                                      child: Text('Alerta clínica: bajo −2 DS',
-                                          style: TextStyle(
-                                              fontSize: 10.5,
-                                              height: 1.3,
-                                              fontWeight: FontWeight.w500,
-                                              color: p.warnText)),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                            child: _numberField(
+                              label: 'Perímetro cefálico',
+                              controller: _pc,
+                              unit: 'cm',
+                              state: pcState,
+                              hint: _pcVal == null ? 'Opcional · 0–5 años' : null,
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -365,15 +473,14 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                   setState(() {
                     _peso.clear();
                     _talla.clear();
+                    _pc.clear();
                   });
                 }),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: PrimaryButton('Calcular indicadores', onTap: () {
-                    Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => const ResultsScreen(),
-                    ));
-                  }),
+                  child: PrimaryButton('Calcular indicadores',
+                      enabled: _canCalculate,
+                      onTap: _canCalculate ? _calculate : null),
                 ),
               ],
             ),
@@ -383,28 +490,78 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     );
   }
 
-  Widget _dateField(String label, String value) {
+  Widget _dateField({
+    required String label,
+    required TextEditingController controller,
+    required VoidCallback onPick,
+    String? error,
+  }) {
     final p = AppPalette.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
-      decoration: BoxDecoration(
-        color: p.surfaceAlt,
-        borderRadius: BorderRadius.circular(Radii.control),
-        border: Border.all(color: p.isDark ? p.border : const Color(0xFFDDE4EA)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SectionLabel(label),
-          const SizedBox(height: 5),
-          Text(value,
-              style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  fontFeatures: kTabular,
-                  color: p.onSurface)),
-        ],
-      ),
+    final borderColor = error != null
+        ? p.bad
+        : (p.isDark ? p.border : const Color(0xFFDDE4EA));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+          decoration: BoxDecoration(
+            color: p.surfaceAlt,
+            borderRadius: BorderRadius.circular(Radii.control),
+            border: Border.all(color: borderColor, width: error != null ? 1.5 : 1),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SectionLabel(label),
+              const SizedBox(height: 5),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: controller,
+                      keyboardType: TextInputType.datetime,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        _DateMaskFormatter(),
+                      ],
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        fontFeatures: kTabular,
+                        color: error != null ? p.badText : p.onSurface,
+                      ),
+                      cursorColor: p.primary,
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
+                        border: InputBorder.none,
+                        hintText: 'dd/mm/aaaa',
+                      ),
+                    ),
+                  ),
+                  InkWell(
+                    onTap: onPick,
+                    borderRadius: BorderRadius.circular(6),
+                    child: Padding(
+                      padding: const EdgeInsets.all(2),
+                      child: Icon(Icons.calendar_today_outlined,
+                          size: 15, color: p.primary),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 5),
+        Text(error ?? '',
+            style: TextStyle(
+                fontSize: 10.5,
+                height: 1.2,
+                fontWeight: FontWeight.w500,
+                color: p.badText)),
+      ],
     );
   }
 
@@ -413,18 +570,32 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     required TextEditingController controller,
     required String unit,
     required ClinicalStatus state,
+    String? hint,
   }) {
     final p = AppPalette.of(context);
-    // In the design the plausible ("ok") field uses the primary-blue border on
-    // a plain surface; only warn/bad tint the fill. The hint text below stays
-    // green for ok.
-    final borderColor = state == ClinicalStatus.ok ? p.primary : p.statusColor(state);
-    final bg = state == ClinicalStatus.ok ? p.surface : p.statusBg(state);
-    final textColor = state == ClinicalStatus.ok
-        ? p.onSurface
-        : state == ClinicalStatus.warn
-            ? p.warnText
-            : p.badText;
+    // El estado "ok" usa el borde azul primario sobre superficie plana; warn/bad
+    // tiñen el fondo; "none" (campo opcional vacío) es neutro.
+    final Color borderColor;
+    final Color bg;
+    final Color textColor;
+    switch (state) {
+      case ClinicalStatus.ok:
+        borderColor = p.primary;
+        bg = p.surface;
+        textColor = p.onSurface;
+      case ClinicalStatus.none:
+        borderColor = p.isDark ? p.border : const Color(0xFFCFD8DF);
+        bg = p.surface;
+        textColor = p.onSurface;
+      case ClinicalStatus.warn:
+        borderColor = p.statusColor(state);
+        bg = p.statusBg(state);
+        textColor = p.warnText;
+      default:
+        borderColor = p.statusColor(state);
+        bg = p.statusBg(state);
+        textColor = p.badText;
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -464,13 +635,34 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           ),
         ),
         const SizedBox(height: 6),
-        Text(Anthro.plausibilityHint(state),
+        Text(hint ?? Anthro.plausibilityHint(state),
             style: TextStyle(
                 fontSize: 10.5,
                 height: 1.3,
                 fontWeight: FontWeight.w500,
-                color: p.statusText(state))),
+                color: state == ClinicalStatus.none ? p.faint : p.statusText(state))),
       ],
+    );
+  }
+}
+
+/// Inserta las barras de `dd/MM/yyyy` a medida que se escribe (entrada ya
+/// filtrada a dígitos). El cursor queda al final: aceptable para un campo corto.
+class _DateMaskFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    final digits = newValue.text.replaceAll(RegExp(r'\D'), '');
+    final capped = digits.length > 8 ? digits.substring(0, 8) : digits;
+    final b = StringBuffer();
+    for (var i = 0; i < capped.length; i++) {
+      if (i == 2 || i == 4) b.write('/');
+      b.write(capped[i]);
+    }
+    final text = b.toString();
+    return TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
     );
   }
 }

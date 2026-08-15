@@ -2,20 +2,27 @@ import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../data.dart';
 import '../widgets.dart';
+import '../anthro/indicators.dart';
+import '../anthro/reference.dart';
 import 'common.dart';
 import 'charts_screen.dart';
 
 class ResultsScreen extends StatelessWidget {
-  const ResultsScreen({super.key});
+  const ResultsScreen({super.key, required this.result});
+
+  final AnthroResult result;
 
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
+    final sexLabel = result.sex == Sex.female ? 'F' : 'M';
+    final subtitle = '${result.standardLabel} · $sexLabel · '
+        '${result.age.decimalMonths.toStringAsFixed(1)} meses · ${result.age.days} d';
     return Scaffold(
       backgroundColor: p.background,
       appBar: ScreenHeader(
         title: 'Resultados',
-        subtitle: 'OMS 2006 · F · 27.0 meses · 823 d',
+        subtitle: subtitle,
         trailing: _pillButton(context, 'Exportar'),
       ),
       body: ListView(
@@ -71,7 +78,7 @@ class ResultsScreen extends StatelessWidget {
                     Text('Resumen nutricional',
                         style: TextStyle(
                             fontSize: 13, fontWeight: FontWeight.w600, color: p.onSurface)),
-                    StatusChip('Adecuado', ClinicalStatus.ok),
+                    StatusChip(result.overallLabel, result.overall),
                   ],
                 ),
                 const SizedBox(height: 11),
@@ -79,10 +86,14 @@ class ResultsScreen extends StatelessWidget {
                   spacing: 16,
                   runSpacing: 10,
                   children: [
-                    _summaryStat(context, 'Peso', '12.4 kg'),
-                    _summaryStat(context, 'Talla', '86.5 cm'),
-                    _summaryStat(context, 'IMC', '16.6'),
-                    _summaryStat(context, 'PC', '44.1 cm', color: p.warn),
+                    _summaryStat(context, 'Peso', '${_fmt(result.weightKg)} kg'),
+                    _summaryStat(context, 'Talla', '${_fmt(result.statureCm)} cm'),
+                    _summaryStat(context, 'IMC',
+                        result.bmi == null ? '—' : result.bmi!.toStringAsFixed(1)),
+                    if (result.headCircumferenceCm != null)
+                      _summaryStat(context, 'PC',
+                          '${_fmt(result.headCircumferenceCm!)} cm',
+                          color: _pcColor(p)),
                   ],
                 ),
               ],
@@ -90,7 +101,7 @@ class ResultsScreen extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           // Indicator cards.
-          for (final ind in kSampleIndicators) ...[
+          for (final ind in result.indicators) ...[
             _IndicatorCard(indicator: ind),
             const SizedBox(height: 10),
           ],
@@ -153,6 +164,15 @@ class ResultsScreen extends StatelessWidget {
       ],
     );
   }
+
+  static String _fmt(double v) =>
+      v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
+
+  Color _pcColor(AppPalette p) {
+    final pc = result.indicators.where((i) => i.name.startsWith('Perímetro'));
+    if (pc.isEmpty || pc.first.status == ClinicalStatus.none) return p.onSurface;
+    return p.statusColor(pc.first.status);
+  }
 }
 
 class _IndicatorCard extends StatelessWidget {
@@ -162,8 +182,13 @@ class _IndicatorCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    final color = p.statusColor(indicator.status);
-    final classColor = indicator.status == ClinicalStatus.ok ? p.muted : p.statusText(indicator.status);
+    final none = indicator.status == ClinicalStatus.none;
+    final color = none ? p.faint : p.statusColor(indicator.status);
+    final classColor = none
+        ? p.faint
+        : (indicator.status == ClinicalStatus.ok
+            ? p.muted
+            : p.statusText(indicator.status));
     final severe = indicator.status == ClinicalStatus.severe;
 
     final body = Row(
@@ -177,10 +202,12 @@ class _IndicatorCard extends StatelessWidget {
                   style: TextStyle(
                       fontSize: 13, fontWeight: FontWeight.w600, height: 1.2, color: p.onSurface)),
               const SizedBox(height: 5),
-              Text('Percentil ${indicator.percentile} · ${indicator.classification}',
+              Text(indicator.subtitle,
                   style: TextStyle(fontSize: 11.5, height: 1.3, color: classColor)),
-              const SizedBox(height: 8),
-              PercentileBar(percentile: indicator.percentile, color: color),
+              if (indicator.percentile != null) ...[
+                const SizedBox(height: 8),
+                PercentileBar(percentile: indicator.percentile!, color: color),
+              ],
             ],
           ),
         ),
@@ -195,7 +222,7 @@ class _IndicatorCard extends StatelessWidget {
                     height: 1,
                     letterSpacing: -1,
                     fontFeatures: kTabular,
-                    color: severe ? p.bad : p.onSurface)),
+                    color: severe ? p.bad : (none ? p.faint : p.onSurface))),
             const SizedBox(height: 4),
             SectionLabel('Z-score'),
           ],
@@ -203,7 +230,7 @@ class _IndicatorCard extends StatelessWidget {
       ],
     );
 
-    if (severe) {
+    if (severe && indicator.deficitNote != null) {
       return SectionCard(
         background: p.isDark ? const Color(0x1FC0392B) : p.badBg,
         borderColor: p.isDark ? const Color(0xFF6E2A22) : p.badBg,
@@ -219,7 +246,7 @@ class _IndicatorCard extends StatelessWidget {
                 border: Border(top: BorderSide(color: p.bad.withValues(alpha: 0.3))),
               ),
               child: Text(
-                'Déficit frente a −2 DS: 0.42 cm. Confirmar técnica de medición y comparar con mediciones previas.',
+                indicator.deficitNote!,
                 style: TextStyle(fontSize: 11, height: 1.4, color: p.badText),
               ),
             ),
