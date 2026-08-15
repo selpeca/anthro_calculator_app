@@ -518,3 +518,148 @@ class ThinDivider extends StatelessWidget {
 }
 
 double degToRad(double deg) => deg * math.pi / 180.0;
+
+/// A premium interactive sliding pill toggle for switching between Light and Dark mode.
+class ThemeTogglePill extends StatefulWidget {
+  const ThemeTogglePill({
+    super.key,
+    required this.isDark,
+    required this.onChanged,
+  });
+
+  final bool isDark;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  State<ThemeTogglePill> createState() => _ThemeTogglePillState();
+}
+
+class _ThemeTogglePillState extends State<ThemeTogglePill> {
+  bool _isPressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = widget.isDark;
+
+    return Tooltip(
+      message: isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro',
+      child: Semantics(
+        button: true,
+        label: isDark
+            ? 'Modo oscuro activo. Toca para cambiar a modo claro'
+            : 'Modo claro activo. Toca para cambiar a modo oscuro',
+        child: GestureDetector(
+          onTapDown: (_) => setState(() => _isPressed = true),
+          onTapUp: (_) => setState(() => _isPressed = false),
+          onTapCancel: () => setState(() => _isPressed = false),
+          onTap: () => widget.onChanged(!isDark),
+          behavior: HitTestBehavior.opaque,
+          child: AnimatedScale(
+            scale: _isPressed ? 0.94 : 1.0,
+            duration: const Duration(milliseconds: 120),
+            curve: Curves.easeOutCubic,
+            child: Container(
+              width: 66,
+              height: 32,
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.22),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: isDark ? 0.30 : 0.25),
+                  width: 1.2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Static/Background Icons layer
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Center(
+                          child: Icon(
+                            Icons.wb_sunny_rounded,
+                            size: 15,
+                            color: Colors.white.withValues(alpha: isDark ? 0.5 : 0.0),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Center(
+                          child: Icon(
+                            Icons.nightlight_round,
+                            size: 14,
+                            color: Colors.white.withValues(alpha: isDark ? 0.0 : 0.55),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  // Animated sliding thumb containing active icon
+                  AnimatedAlign(
+                    duration: const Duration(milliseconds: 260),
+                    curve: Curves.easeInOutCubic,
+                    alignment: isDark ? Alignment.centerRight : Alignment.centerLeft,
+                    child: Container(
+                      width: 26,
+                      height: 26,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                        boxShadow: [
+                          BoxShadow(
+                            color: isDark
+                                ? const Color(0xFF38BDF8).withValues(alpha: 0.45)
+                                : const Color(0xFFF59E0B).withValues(alpha: 0.5),
+                            blurRadius: 8,
+                            spreadRadius: 1,
+                          ),
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            blurRadius: 3,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 200),
+                          transitionBuilder: (child, anim) => ScaleTransition(
+                            scale: anim,
+                            child: FadeTransition(opacity: anim, child: child),
+                          ),
+                          child: isDark
+                              ? const Icon(
+                                  Icons.nightlight_round,
+                                  key: ValueKey('moon_active'),
+                                  size: 14,
+                                  color: Color(0xFF38BDF8),
+                                )
+                              : const Icon(
+                                  Icons.wb_sunny_rounded,
+                                  key: ValueKey('sun_active'),
+                                  size: 15,
+                                  color: Color(0xFFD97706),
+                                ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+

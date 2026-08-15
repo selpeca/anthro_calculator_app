@@ -1,8 +1,10 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:anthro_calculator_app/main.dart';
 import 'package:anthro_calculator_app/theme.dart';
 import 'package:anthro_calculator_app/data.dart';
+import 'package:anthro_calculator_app/widgets.dart';
 
 void main() {
   testWidgets('App boots on the splash screen', (tester) async {
@@ -28,4 +30,32 @@ void main() {
     expect(Anthro.heightState(86.5), ClinicalStatus.ok);
     expect(Anthro.heightState(98.0), ClinicalStatus.warn);
   });
+
+  testWidgets('ThemeTogglePill toggles theme state on tap', (tester) async {
+    bool isDark = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) {
+              return ThemeTogglePill(
+                isDark: isDark,
+                onChanged: (val) {
+                  setState(() {
+                    isDark = val;
+                  });
+                },
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byType(ThemeTogglePill), findsOneWidget);
+    await tester.tap(find.byType(ThemeTogglePill));
+    await tester.pumpAndSettle();
+    expect(isDark, isTrue);
+  });
 }
+

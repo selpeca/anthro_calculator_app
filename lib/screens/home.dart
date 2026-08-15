@@ -163,13 +163,10 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  static Widget _boxIcon(Color color) => Container(
-        width: 14,
-        height: 14,
-        decoration: BoxDecoration(
-          border: Border.all(color: color, width: 2),
-          borderRadius: BorderRadius.circular(3),
-        ),
+  static Widget _boxIcon(Color color) => Icon(
+        Icons.calculate_outlined,
+        color: color,
+        size: 18,
       );
 }
 
@@ -209,12 +206,12 @@ class _Header extends StatelessWidget {
                   valueListenable: themeModeNotifier,
                   builder: (context, mode, _) {
                     final dark = Theme.of(context).brightness == Brightness.dark;
-                    return IconButton(
-                      onPressed: () => themeModeNotifier.value =
-                          dark ? ThemeMode.light : ThemeMode.dark,
-                      icon: Icon(dark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-                          color: Colors.white, size: 20),
-                      splashRadius: 20,
+                    return ThemeTogglePill(
+                      isDark: dark,
+                      onChanged: (newIsDark) {
+                        themeModeNotifier.value =
+                            newIsDark ? ThemeMode.dark : ThemeMode.light;
+                      },
                     );
                   },
                 ),
@@ -229,11 +226,6 @@ class _Header extends StatelessWidget {
                   textColor: const Color(0xFFD5F2E5),
                   background: const Color(0xFF1F8A5B).withValues(alpha: 0.22),
                   borderColor: const Color(0xFF8CDEBA).withValues(alpha: 0.45),
-                ),
-                const SizedBox(width: 8),
-                HeaderPill(
-                  text: 'Ref. OMS 2006/2007',
-                  textColor: const Color(0xFFDCEBF5),
                 ),
               ],
             ),
