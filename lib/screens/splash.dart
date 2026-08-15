@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
+import '../reference/reference_repository.dart';
 import 'home.dart';
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -17,16 +18,24 @@ class _SplashScreenState extends State<SplashScreen>
     super.initState();
     _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 900))
       ..forward();
-    Future.delayed(const Duration(milliseconds: 2100), () {
-      if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          transitionDuration: const Duration(milliseconds: 350),
-          pageBuilder: (_, a, _) =>
-              FadeTransition(opacity: a, child: const HomeScreen()),
-        ),
-      );
-    });
+    _boot();
+  }
+
+  Future<void> _boot() async {
+    // Precarga las tablas de referencia (semilla + almacén local) mientras corre
+    // la animación; navega cuando terminan ambas, respetando el tiempo mínimo.
+    await Future.wait([
+      ReferenceRepository.ensureLoaded(),
+      Future<void>.delayed(const Duration(milliseconds: 2100)),
+    ]);
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 350),
+        pageBuilder: (_, a, _) =>
+            FadeTransition(opacity: a, child: const HomeScreen()),
+      ),
+    );
   }
 
   @override

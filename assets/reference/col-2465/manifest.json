@@ -1,0 +1,170 @@
+{
+  "schemaVersion": 1,
+  "standardId": "col-2465",
+  "displayName": "Colombia · Resolución 2465 de 2016",
+  "version": "2016.1",
+  "generatedAt": "2026-08-15",
+  "source": "Resolución 2465 de 2016 (Colombia) — adopta las curvas OMS 2006/2007",
+  "tablesFrom": "oms-2006",
+  "validity": {
+    "weightForAge": {
+      "axis": "ageDays",
+      "min": 0,
+      "max": 1856
+    },
+    "statureForAge": {
+      "axis": "ageDays",
+      "min": 0,
+      "max": 1856
+    },
+    "bmiForAge": {
+      "axis": "ageDays",
+      "min": 0,
+      "max": 1856
+    },
+    "headCircumferenceForAge": {
+      "axis": "ageDays",
+      "min": 0,
+      "max": 1856
+    },
+    "weightForStature": {
+      "axis": "statureCm",
+      "length": {
+        "min": 45.0,
+        "max": 110.0
+      },
+      "height": {
+        "min": 65.0,
+        "max": 120.0
+      }
+    }
+  },
+  "classification": {
+    "weightForAge": [
+      {
+        "ltZ": -3,
+        "label": "Peso muy bajo para la edad"
+      },
+      {
+        "ltZ": -2,
+        "label": "Peso bajo para la edad"
+      },
+      {
+        "ltZ": -1,
+        "label": "Riesgo de peso bajo para la edad"
+      },
+      {
+        "ltZ": 1,
+        "label": "Peso adecuado para la edad"
+      },
+      {
+        "ltZ": null,
+        "label": "Peso adecuado para la edad"
+      }
+    ],
+    "statureForAge": [
+      {
+        "ltZ": -3,
+        "label": "Talla baja para la edad o retraso en talla"
+      },
+      {
+        "ltZ": -2,
+        "label": "Talla baja para la edad o retraso en talla"
+      },
+      {
+        "ltZ": -1,
+        "label": "Riesgo de talla baja"
+      },
+      {
+        "ltZ": null,
+        "label": "Talla adecuada para la edad"
+      }
+    ],
+    "weightForStature": [
+      {
+        "ltZ": -3,
+        "label": "Desnutrición aguda severa"
+      },
+      {
+        "ltZ": -2,
+        "label": "Desnutrición aguda moderada"
+      },
+      {
+        "ltZ": -1,
+        "label": "Riesgo de desnutrición aguda"
+      },
+      {
+        "ltZ": 1,
+        "label": "Peso adecuado para la talla"
+      },
+      {
+        "ltZ": 2,
+        "label": "Sobrepeso"
+      },
+      {
+        "ltZ": 3,
+        "label": "Sobrepeso"
+      },
+      {
+        "ltZ": null,
+        "label": "Obesidad"
+      }
+    ],
+    "bmiForAge": [
+      {
+        "ltZ": -3,
+        "label": "Delgadez"
+      },
+      {
+        "ltZ": -2,
+        "label": "Delgadez"
+      },
+      {
+        "ltZ": -1,
+        "label": "Riesgo de delgadez"
+      },
+      {
+        "ltZ": 1,
+        "label": "IMC adecuado para la edad"
+      },
+      {
+        "ltZ": 2,
+        "label": "Sobrepeso"
+      },
+      {
+        "ltZ": 3,
+        "label": "Sobrepeso"
+      },
+      {
+        "ltZ": null,
+        "label": "Obesidad"
+      }
+    ],
+    "headCircumferenceForAge": [
+      {
+        "ltZ": -3,
+        "label": "Microcefalia severa"
+      },
+      {
+        "ltZ": -2,
+        "label": "Microcefalia — requiere valoración"
+      },
+      {
+        "ltZ": -1,
+        "label": "Perímetro cefálico en límite inferior"
+      },
+      {
+        "ltZ": 1,
+        "label": "Perímetro cefálico normal"
+      },
+      {
+        "ltZ": 2,
+        "label": "Perímetro cefálico en límite superior"
+      },
+      {
+        "ltZ": null,
+        "label": "Macrocefalia — requiere valoración"
+      }
+    ]
+  }
+}

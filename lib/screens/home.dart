@@ -7,6 +7,7 @@ import 'calculator.dart';
 import 'velocity.dart';
 import 'patients.dart';
 import 'patient_detail.dart';
+import 'reference_status.dart';
 
 import '../settings.dart';
 import 'app_drawer.dart';
@@ -225,12 +226,16 @@ class _Header extends StatelessWidget {
             const SizedBox(height: 14),
             Row(
               children: [
-                HeaderPill(
-                  text: 'Offline · datos locales',
-                  dotColor: const Color(0xFF8CDEBA),
-                  textColor: const Color(0xFFD5F2E5),
-                  background: const Color(0xFF1F8A5B).withValues(alpha: 0.22),
-                  borderColor: const Color(0xFF8CDEBA).withValues(alpha: 0.45),
+                GestureDetector(
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => const ReferenceStatusScreen())),
+                  child: HeaderPill(
+                    text: 'Offline · datos locales',
+                    dotColor: const Color(0xFF8CDEBA),
+                    textColor: const Color(0xFFD5F2E5),
+                    background: const Color(0xFF1F8A5B).withValues(alpha: 0.22),
+                    borderColor: const Color(0xFF8CDEBA).withValues(alpha: 0.45),
+                  ),
                 ),
                 const SizedBox(width: 8),
                 ValueListenableBuilder<UnitSystem>(

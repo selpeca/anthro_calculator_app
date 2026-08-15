@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "packages": [
+    {
+      "standardId": "oms-2006",
+      "dir": "oms-2006"
+    },
+    {
+      "standardId": "col-2465",
+      "dir": "col-2465"
+    }
+  ]
+}

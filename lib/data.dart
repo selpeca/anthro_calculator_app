@@ -14,77 +14,43 @@ extension RefStandardX on RefStandard {
 /// Measurement position: standing height vs. recumbent length.
 enum MeasurePosition { standing, lying }
 
-/// A single anthropometric indicator result (a Z-score against a curve).
+/// Resultado de un indicador antropométrico (un Z-score contra una curva).
+///
+/// DTO de presentación que renderiza `results.dart`. Lo llena el motor
+/// (`lib/anthro/indicators.dart`) a partir del cálculo real. Cuando el
+/// indicador no es interpretable (edad/talla fuera del rango de la
+/// referencia), `z`, `percentile` y `percentileLabel` van en `null` y
+/// `status` es `ClinicalStatus.none`.
 class Indicator {
   const Indicator({
     required this.name,
-    required this.value,
-    required this.median,
     required this.z,
     required this.percentile,
+    required this.percentileLabel,
     required this.classification,
     required this.status,
+    this.deficitNote,
   });
 
   final String name;
-  final String value;
-  final String median;
-  final double z;
-  final int percentile;
+  final double? z;
+  final int? percentile;
+  final String? percentileLabel;
   final String classification;
   final ClinicalStatus status;
 
-  String get zLabel => '${z > 0 ? '+' : '−'}${z.abs().toStringAsFixed(2)}';
-}
+  /// Nota del déficit frente a −2 DS para el caso severo (o `null`).
+  final String? deficitNote;
 
-/// The result set shown on the design's "Resultados" screen (1d).
-const List<Indicator> kSampleIndicators = [
-  Indicator(
-    name: 'Peso / Talla',
-    value: '12.4 kg',
-    median: '12.1',
-    z: 0.31,
-    percentile: 62,
-    classification: 'Peso adecuado para la talla',
-    status: ClinicalStatus.ok,
-  ),
-  Indicator(
-    name: 'Peso / Edad',
-    value: '12.4 kg',
-    median: '12.9',
-    z: -0.42,
-    percentile: 34,
-    classification: 'Peso normal',
-    status: ClinicalStatus.ok,
-  ),
-  Indicator(
-    name: 'Talla / Edad',
-    value: '86.5 cm',
-    median: '89.9',
-    z: -1.15,
-    percentile: 13,
-    classification: 'Riesgo de talla baja',
-    status: ClinicalStatus.warn,
-  ),
-  Indicator(
-    name: 'IMC / Edad',
-    value: '16.6',
-    median: '16.4',
-    z: 0.28,
-    percentile: 61,
-    classification: 'Estado nutricional normal',
-    status: ClinicalStatus.ok,
-  ),
-  Indicator(
-    name: 'Perímetro cefálico / Edad',
-    value: '44.1 cm',
-    median: '47.2',
-    z: -2.30,
-    percentile: 1,
-    classification: 'Microcefalia — requiere valoración',
-    status: ClinicalStatus.severe,
-  ),
-];
+  String get zLabel =>
+      z == null ? '—' : '${z! > 0 ? '+' : '−'}${z!.abs().toStringAsFixed(2)}';
+
+  /// Subtítulo de la tarjeta: percentil + clasificación, o solo clasificación
+  /// cuando no hay percentil (no interpretable).
+  String get subtitle => percentile == null
+      ? classification
+      : 'Percentil $percentileLabel · $classification';
+}
 
 /// Patient list entry (design 1i).
 class Patient {
@@ -206,8 +172,9 @@ const List<Measurement> kSampleHistory = [
 
 /// Pure anthropometric helpers translated from the design's `renderVals`.
 class Anthro {
-  /// Approx. reference median weight curve (kg) by age in months, used by the
-  /// LMS chart. Matches `M(t)` in the design script.
+  /// Curva de mediana de peso (kg) aproximada por edad en meses. Solo la usan
+  /// las gráficas de `charts.dart` (fuera de alcance de este cálculo real).
+  @Deprecated('Curva simulada; el cálculo real usa ReferenceTable / WHO LMS.')
   static double medianWeight(double months) =>
       3.3 + 6.5 * (1 - math.exp(-months / 4.5)) + 0.15 * months;
 
@@ -217,35 +184,28 @@ class Anthro {
     return kg / (m * m);
   }
 
-  /// Plausibility state for a weight value (kg) at ~27 months, per the design.
-  static ClinicalStatus weightState(double? kg) {
-    if (kg == null || kg == 0) return ClinicalStatus.bad;
-    if (kg < 6 || kg > 30) return ClinicalStatus.bad;
-    if (kg < 9.5 || kg > 17) return ClinicalStatus.warn;
-    return ClinicalStatus.ok;
-  }
-
-  static ClinicalStatus heightState(double? cm) {
-    if (cm == null || cm == 0) return ClinicalStatus.bad;
-    if (cm < 60 || cm > 130) return ClinicalStatus.bad;
-    if (cm < 80 || cm > 97) return ClinicalStatus.warn;
-    return ClinicalStatus.ok;
-  }
-
+  /// Texto de plausibilidad bajo un campo numérico según su estado.
+  /// La lógica de estado vive ahora en `lib/anthro/plausibility.dart`.
   static String plausibilityHint(ClinicalStatus s) {
     switch (s) {
       case ClinicalStatus.ok:
         return '✓ Valor plausible para la edad';
       case ClinicalStatus.warn:
-        return '! Fuera del rango esperado (−2/+2 DS)';
+        return '! Fuera del rango esperado (±3 DS)';
+      case ClinicalStatus.none:
+        return '';
       default:
         return '✕ Valor implausible — verificar';
     }
   }
 
-  /// Position note. `ageMonths` fixed to the sample patient (27 m).
+  /// Nota de posición según la edad. Con `ageMonths` nulo (sin fechas aún)
+  /// devuelve una nota neutra.
   static (String note, bool warning) positionNote(
-      MeasurePosition pos, double ageMonths) {
+      MeasurePosition pos, double? ageMonths) {
+    if (ageMonths == null) {
+      return ('Ingrese las fechas para validar la posición de medición.', false);
+    }
     final standing = pos == MeasurePosition.standing;
     final mismatch = standing ? ageMonths < 24 : ageMonths >= 24;
     if (mismatch) {

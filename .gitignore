@@ -43,3 +43,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Reference generator cache (tool/generate_reference.py) — not committed;
+# the generated assets under assets/reference/ are committed instead.
+/tool/.cache/

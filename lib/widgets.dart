@@ -185,29 +185,35 @@ class SegmentedControl extends StatelessWidget {
 
 /// Filled primary button matching the design's "Calcular" style.
 class PrimaryButton extends StatelessWidget {
-  const PrimaryButton(this.label, {super.key, this.onTap, this.expand = true});
+  const PrimaryButton(this.label,
+      {super.key, this.onTap, this.expand = true, this.enabled = true});
   final String label;
   final VoidCallback? onTap;
   final bool expand;
+
+  /// Cuando es `false`, se atenúa, pierde la sombra e ignora el toque.
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
     final btn = GestureDetector(
-      onTap: onTap,
+      onTap: enabled ? onTap : null,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 18),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: p.primary,
+          color: enabled ? p.primary : p.primary.withValues(alpha: 0.38),
           borderRadius: BorderRadius.circular(Radii.control),
-          boxShadow: [
-            BoxShadow(
-              color: p.primary.withValues(alpha: 0.28),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            )
-          ],
+          boxShadow: enabled
+              ? [
+                  BoxShadow(
+                    color: p.primary.withValues(alpha: 0.28),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  )
+                ]
+              : null,
         ),
         child: Text(
           label,
