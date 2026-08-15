@@ -5,6 +5,8 @@ import '../widgets.dart';
 import 'common.dart';
 import 'results.dart';
 
+import '../settings.dart';
+
 class CalculatorScreen extends StatefulWidget {
   const CalculatorScreen({super.key});
 
@@ -187,29 +189,34 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                               fontWeight: FontWeight.w500,
                               color: posWarn ? p.warnText : p.ok)),
                       const SizedBox(height: 11),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: _numberField(
-                              label: 'Peso',
-                              controller: _peso,
-                              unit: 'kg',
-                              state: pesoState,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _numberField(
-                              label: _pos == MeasurePosition.standing
-                                  ? 'Talla (de pie)'
-                                  : 'Longitud (acostado)',
-                              controller: _talla,
-                              unit: 'cm',
-                              state: tallaState,
-                            ),
-                          ),
-                        ],
+                      ValueListenableBuilder<UnitSystem>(
+                        valueListenable: unitSystemNotifier,
+                        builder: (context, activeUnit, _) {
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: _numberField(
+                                  label: 'Peso',
+                                  controller: _peso,
+                                  unit: activeUnit.weightUnit,
+                                  state: pesoState,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _numberField(
+                                  label: _pos == MeasurePosition.standing
+                                      ? 'Talla (de pie)'
+                                      : 'Longitud (acostado)',
+                                  controller: _talla,
+                                  unit: activeUnit.heightUnit,
+                                  state: tallaState,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
                       ),
                       const SizedBox(height: 11),
                       Row(
