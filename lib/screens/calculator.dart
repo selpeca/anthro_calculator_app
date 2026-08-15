@@ -31,7 +31,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   final _pc = TextEditingController();
   final _birth = TextEditingController();
   final _meas = TextEditingController();
-  RefStandard _ref = RefStandard.oms;
+  final RefStandard _ref = RefStandard.oms;
   bool _female = true;
   MeasurePosition _pos = MeasurePosition.standing;
   bool _save = true;

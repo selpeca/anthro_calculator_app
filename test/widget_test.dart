@@ -103,7 +103,7 @@ void main() {
   });
 
   testWidgets('el botón Limpiar vacía los textfield excepto f. medición que pone la fecha actual', (tester) async {
-    final fixedClock = () => DateTime(2026, 8, 15);
+    DateTime fixedClock() => DateTime(2026, 8, 15);
     await tester.pumpWidget(_wrap(
       CalculatorScreen(clock: fixedClock),
     ));
