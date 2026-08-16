@@ -99,7 +99,7 @@ class ResultsScreen extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Resumen nutricional',
+                    Text('Resumen de indicadores',
                         style: TextStyle(
                             fontSize: 13, fontWeight: FontWeight.w600, color: p.onSurface)),
                     StatusChip(result.overallLabel, result.overall),
@@ -345,7 +345,7 @@ void showLegendSheet(BuildContext context) {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Semaforización de resultados',
+                        Text('Clasificación de resultados',
                             style: TextStyle(
                                 fontSize: 17, fontWeight: FontWeight.w700, color: p.onSurface)),
                         const SizedBox(height: 4),
@@ -400,16 +400,16 @@ void showLegendSheet(BuildContext context) {
               ),
               const SizedBox(height: 14),
               _legendRow(context, p.ok, 'Verde · Adecuado',
-                  'Z entre −1 y +1 · percentil 15 a 85. Hallazgo normal; continuar controles de rutina.'),
+                  'Z entre −1 y +1 · percentil 15 a 85. Valor dentro del rango de referencia.'),
               const SizedBox(height: 9),
               _legendRow(context, p.warn, 'Ámbar · Riesgo',
-                  'Z entre −2 y −1, o entre +1 y +2 · percentil 3–15 / 85–97. Vigilar velocidad de crecimiento y citar control temprano.'),
+                  'Z entre −2 y −1, o entre +1 y +2 · percentil 3–15 / 85–97. Valor en zona de alerta respecto a la referencia.'),
               const SizedBox(height: 9),
               _legendRow(context, p.bad, 'Rojo · Alteración',
-                  'Z menor a −2 o mayor a +2 · por debajo del percentil 3 o por encima del 97. Requiere conducta clínica y registro de la alerta.'),
+                  'Z menor a −2 o mayor a +2 · por debajo del percentil 3 o por encima del 97. Valor muy alejado de la mediana de referencia.'),
               const SizedBox(height: 9),
               _legendRow(context, p.severe, 'Rojo intenso · Severo',
-                  'Z menor a −3 o mayor a +3. Desnutrición u obesidad severa: manejo prioritario.'),
+                  'Z menor a −3 o mayor a +3. Valor extremadamente alejado de la mediana de referencia.'),
               const SizedBox(height: 9),
               _legendRow(context, p.faint, 'Gris · No interpretable',
                   'Dato faltante o edad fuera del rango de validez de la referencia seleccionada.'),

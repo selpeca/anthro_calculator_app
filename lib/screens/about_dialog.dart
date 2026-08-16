@@ -54,7 +54,7 @@ class AboutAppDialog extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  'Versión 1.0.0 · Edición Clínica',
+                  'Versión 1.0.0',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
@@ -64,7 +64,7 @@ class AboutAppDialog extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                'Herramienta asistencial para la evaluación antropométrica pediátrica, cálculo de Z-scores, percentiles y velocidad de crecimiento en niños y niñas.',
+                'Calculadora educativa de referencia para estimar indicadores antropométricos, Z-scores, percentiles y velocidad de crecimiento en niñas y niños.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 12.5,
@@ -77,9 +77,9 @@ class AboutAppDialog extends StatelessWidget {
               const SizedBox(height: 16),
               _FeatureTile(
                 icon: Icons.biotech_outlined,
-                title: 'Estándares Clínicos',
+                title: 'Tablas de referencia',
                 subtitle:
-                    'Basado en Patrones de Crecimiento OMS (2006) y la Resolución 2465 de 2016 de Colombia.',
+                    'Basado en las tablas de crecimiento OMS (2006) y la Resolución 2465 de 2016 de Colombia.',
               ),
               const SizedBox(height: 12),
               _FeatureTile(
@@ -91,9 +91,9 @@ class AboutAppDialog extends StatelessWidget {
               const SizedBox(height: 12),
               _FeatureTile(
                 icon: Icons.health_and_safety_outlined,
-                title: 'Semaforización Médica',
+                title: 'Clasificación por rangos',
                 subtitle:
-                    'Clasificación automática de riesgo nutricional y de crecimiento (Normal, Riesgo, Agudo/Severo).',
+                    'Clasificación automática por rangos de referencia (Normal, Riesgo, Agudo/Severo).',
               ),
               const SizedBox(height: 20),
               Container(
@@ -111,7 +111,7 @@ class AboutAppDialog extends StatelessWidget {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Aviso médico: Esta app está diseñada como herramienta de soporte para profesionales de la salud y no reemplaza el juicio clínico profesional.',
+                        'Herramienta educativa y de referencia. No reemplaza el criterio de un profesional.',
                         style: TextStyle(
                           fontSize: 10.5,
                           height: 1.35,

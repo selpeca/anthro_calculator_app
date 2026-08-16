@@ -39,11 +39,11 @@ Al no transmitir ni almacenar datos fuera de tu dispositivo, se minimizan los ri
 
 ## 7. Privacidad de menores
 
-La aplicación puede ser utilizada por profesionales de la salud y cuidadores para registrar mediciones de menores. La aplicación no recopila ni solicita datos de identificación personal de menores más allá de lo que el propio usuario decida registrar en su dispositivo.
+La aplicación puede ser utilizada por cuidadores y usuarios para registrar mediciones de menores. La aplicación no recopila ni solicita datos de identificación personal de menores más allá de lo que el propio usuario decida registrar en su dispositivo.
 
-## 8. Datos de salud
+## 8. Datos ingresados
 
-La aplicación es una herramienta de apoyo para el cálculo de indicadores antropométricos. Los resultados no constituyen un diagnóstico médico. No se recopila, almacena ni transmite información de salud fuera del dispositivo.
+La aplicación es una herramienta educativa y de referencia para el cálculo de indicadores antropométricos. Los resultados tienen carácter educativo y de referencia y no reemplazan el criterio de un profesional. No se recopila, almacena ni transmite información fuera del dispositivo.
 
 ## 9. Cambios a esta política
 

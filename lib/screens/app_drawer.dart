@@ -60,7 +60,7 @@ class AppDrawer extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  'Antropometría pediátrica clínica',
+                  'Calculadora de antropometría pediátrica',
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.white.withValues(alpha: 0.8),
@@ -211,7 +211,7 @@ class AppDrawer extends StatelessWidget {
                 _DrawerTile(
                   icon: Icons.info_outline_rounded,
                   title: 'Acerca de Anthro Calculator',
-                  subtitle: 'Versión, normas clínicas y créditos',
+                  subtitle: 'Versión, tablas de referencia y créditos',
                   onTap: () {
                     Navigator.of(context).pop(); // Close drawer
                     showAboutAppDialog(context);

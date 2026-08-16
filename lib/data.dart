@@ -6,8 +6,8 @@ enum RefStandard { oms, colombia }
 extension RefStandardX on RefStandard {
   String get label => this == RefStandard.oms ? 'OMS' : 'Colombia';
   String get note => this == RefStandard.oms
-      ? 'OMS 2006 (0–5 a) y 2007 (5–19 a) · estándar prescriptivo internacional.'
-      : 'Resolución 2465 de 2016 · adopta patrones OMS con las clasificaciones nacionales de estado nutricional.';
+      ? 'OMS 2006 (0–5 a) y 2007 (5–19 a) · tabla de referencia internacional.'
+      : 'Resolución 2465 de 2016 · adopta las tablas OMS con las clasificaciones nacionales de referencia.';
 }
 
 /// Measurement position: standing height vs. recumbent length.

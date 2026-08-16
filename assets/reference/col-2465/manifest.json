@@ -143,11 +143,11 @@
     "headCircumferenceForAge": [
       {
         "ltZ": -3,
-        "label": "Microcefalia severa"
+        "label": "Perímetro cefálico muy por debajo de la referencia"
       },
       {
         "ltZ": -2,
-        "label": "Microcefalia — requiere valoración"
+        "label": "Perímetro cefálico por debajo de la referencia"
       },
       {
         "ltZ": -1,
@@ -163,7 +163,7 @@
       },
       {
         "ltZ": null,
-        "label": "Macrocefalia — requiere valoración"
+        "label": "Perímetro cefálico por encima de la referencia"
       }
     ]
   }

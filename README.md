@@ -1,18 +1,19 @@
 # Anthro Calculator App
 
-Antropometría pediátrica **offline-first** para uso clínico, según los patrones de
-crecimiento de la **OMS 2006/2007** y la **Resolución 2465 de 2016** de Colombia.
+Calculadora educativa **offline-first** de antropometría pediátrica, basada en las
+tablas de referencia de crecimiento **OMS 2006/2007** y la **Resolución 2465 de 2016**
+de Colombia.
 
 Aplicación Flutter (Material 3, temas claro y oscuro, español por defecto)
 implementada a partir del proyecto de diseño *Anthro OMS Calculator*.
 
 ## Resumen
 
-La app calcula la evaluación antropométrica de niñas y niños (0–5 años) a partir
+La app calcula los indicadores antropométricos de niñas y niños (0–5 años) a partir
 de sexo, fechas de nacimiento y medición, peso, talla y perímetro cefálico. Con
 esos datos obtiene la edad exacta, el IMC y el **Z-score + percentil** de cada
-indicador contra la referencia LMS de la OMS, con **semaforización** clínica
-(Normal · Riesgo · Agudo/Severo). Todo el cálculo y el almacenamiento ocurren
+indicador contra la referencia LMS de la OMS, con **clasificación por rangos** de
+referencia (Normal · Riesgo · Agudo/Severo). Todo el cálculo y el almacenamiento ocurren
 en el dispositivo, sin envío a servidores.
 
 **Indicadores calculados** (`computeAnthro`): Peso/Edad, Talla/Edad, Peso/Talla,

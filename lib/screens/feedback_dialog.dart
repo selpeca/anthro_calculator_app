@@ -63,8 +63,7 @@ class _FeedbackDialogState extends State<FeedbackDialog> {
             'Hola, te escribo desde Anthro Calculator App para reportar un '
                 'error.',
             '',
-            'Aplicación: Anthro Calculator App · Versión 1.0.0 · Edición '
-                'Clínica',
+            'Aplicación: Anthro Calculator App · Versión 1.0.0',
             'Fecha del reporte: ${_formatDate(DateTime.now())}',
             '',
             'DESCRIPCIÓN DEL PROBLEMA',
@@ -81,8 +80,7 @@ class _FeedbackDialogState extends State<FeedbackDialog> {
             'Hola, te escribo desde Anthro Calculator App para proponer una '
                 'nueva función.',
             '',
-            'Aplicación: Anthro Calculator App · Versión 1.0.0 · Edición '
-                'Clínica',
+            'Aplicación: Anthro Calculator App · Versión 1.0.0',
             'Fecha: ${_formatDate(DateTime.now())}',
             '',
             'DESCRIPCIÓN DE LA FUNCIÓN',

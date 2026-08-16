@@ -89,7 +89,7 @@ class _SplashScreenState extends State<SplashScreen>
                           ),
                           const SizedBox(height: 24),
                           Text(
-                            'Antropometría pediátrica clínica\nOMS · Colombia',
+                            'Calculadora de antropometría pediátrica\nTablas OMS · Colombia',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 13,

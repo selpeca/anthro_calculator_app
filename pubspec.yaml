@@ -1,5 +1,5 @@
 name: anthro_calculator_app
-description: "Anthro Calculator App — offline-first pediatric anthropometry (OMS / Colombia)."
+description: "Anthro Calculator — calculadora educativa de antropometría pediátrica, offline (tablas OMS / Colombia)."
 publish_to: 'none'
 version: 1.0.0+1
 

@@ -103,7 +103,7 @@ void main() {
 
   testWidgets('App boots on the splash screen', (tester) async {
     await tester.pumpWidget(const AnthroApp());
-    expect(find.text('Antropometría pediátrica clínica\nOMS · Colombia'), findsOneWidget);
+    expect(find.text('Calculadora de antropometría pediátrica\nTablas OMS · Colombia'), findsOneWidget);
     expect(find.text('Listo para trabajar sin conexión'), findsOneWidget);
 
     // El splash tiene un indicador de progreso infinito: no se puede usar

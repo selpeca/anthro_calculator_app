@@ -421,8 +421,8 @@ pw.Widget _footer(pw.Context ctx) {
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
       children: [
         pw.Text(
-          _wa('Anthro Calculator · Apoyo clínico; no reemplaza el juicio '
-              'profesional.'),
+          _wa('Anthro Calculator · Herramienta educativa. No reemplaza el '
+              'criterio de un profesional.'),
           style: pw.TextStyle(fontSize: 7.5, color: _faint),
         ),
         pw.Text('${ctx.pageNumber} / ${ctx.pagesCount}',
