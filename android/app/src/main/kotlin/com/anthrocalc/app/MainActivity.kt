@@ -1,4 +1,4 @@
-package com.example.anthro_calculator_app
+package com.anthrocalc.app
 
 import io.flutter.embedding.android.FlutterActivity
 
