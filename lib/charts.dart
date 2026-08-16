@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'theme.dart';
@@ -311,6 +312,45 @@ class _LmsPainter extends CustomPainter {
       old.xMaxKey != xMaxKey ||
       old.yMin != yMin ||
       old.yMax != yMax;
+}
+
+/// Rasteriza una curva LMS a PNG con el mismo pintor que usa la pantalla
+/// (`_LmsPainter`), para incrustarla en el reporte PDF sin duplicar el dibujo.
+///
+/// Se pinta directamente sobre un `PictureRecorder` (sin árbol de widgets ni
+/// `RepaintBoundary`), por lo que sirve para cualquier indicador aunque su
+/// pestaña no esté visible. Pásale normalmente `AppPalette.light` para que el
+/// reporte impreso sea legible sin importar el tema activo de la app.
+/// [logicalWidth] es el ancho en px lógicos (relación 344:236 como en pantalla)
+/// y [pixelRatio] la supermuestra para que el trazo salga nítido en el PDF.
+Future<Uint8List> rasterizeLmsChart({
+  required AppPalette palette,
+  required List<CurveBand> bands,
+  required List<GrowthPoint> points,
+  required double xMinKey,
+  required double xMaxKey,
+  required double yMin,
+  required double yMax,
+  double logicalWidth = 344,
+  double pixelRatio = 3.0,
+}) async {
+  final logicalHeight = logicalWidth * (236 / 344);
+  final recorder = ui.PictureRecorder();
+  final canvas = Canvas(recorder);
+  canvas.scale(pixelRatio);
+  // Fondo opaco: el PNG iría transparente y en el PDF se vería el papel a través
+  // de la rejilla.
+  canvas.drawRect(Rect.fromLTWH(0, 0, logicalWidth, logicalHeight),
+      Paint()..color = palette.surface);
+  _LmsPainter(palette, bands, points, xMinKey, xMaxKey, yMin, yMax)
+      .paint(canvas, Size(logicalWidth, logicalHeight));
+  final picture = recorder.endRecording();
+  final image = await picture.toImage(
+      (logicalWidth * pixelRatio).round(), (logicalHeight * pixelRatio).round());
+  final data = await image.toByteData(format: ui.ImageByteFormat.png);
+  image.dispose();
+  picture.dispose();
+  return data!.buffer.asUint8List();
 }
 
 /// Z-score progression line chart (design `zChart`). Two series: weight-for-age

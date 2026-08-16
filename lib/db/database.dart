@@ -12,6 +12,7 @@ library;
 
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
@@ -41,6 +42,14 @@ class AnthroDatabase {
   /// Ruta con la que se abrió la base; se resuelve en `_open` y se reporta en
   /// [stats] (para mostrar ubicación y tamaño en disco).
   String? _resolvedPath;
+
+  /// Se notifica ante cualquier mutación de datos (guardar, actualizar, limpiar
+  /// o borrar). Las pantallas que muestran agregados —como el home— pueden
+  /// escucharlo para refrescarse. El valor es un contador de revisión sin
+  /// significado propio; solo interesan sus cambios.
+  final ValueNotifier<int> revision = ValueNotifier<int>(0);
+
+  void _notifyChanged() => revision.value++;
 
   /// Abre (una vez) la base y la reutiliza. Forma explícita para no depender
   /// del análisis de tipos de `??=` sobre un campo anulable.
@@ -144,7 +153,7 @@ class AnthroDatabase {
   }) async {
     final db = await database;
     final name = patientName.trim();
-    return db.transaction((txn) async {
+    final id = await db.transaction((txn) async {
       final pid = patientId ?? await _resolvePatientId(txn, name);
       final now = _isoNow();
       final measurementId = await txn.insert('measurements', {
@@ -171,6 +180,8 @@ class AnthroDatabase {
       await _insertIndicators(txn, measurementId, result);
       return measurementId;
     });
+    _notifyChanged();
+    return id;
   }
 
   /// Actualiza una medición ya guardada (flujo del botón "Actualizar").
@@ -218,6 +229,7 @@ class AnthroDatabase {
           where: 'measurement_id = ?', whereArgs: [measurementId]);
       await _insertIndicators(txn, measurementId, result);
     });
+    _notifyChanged();
   }
 
   /// Id del paciente existente con ese nombre, o crea uno nuevo.
@@ -419,11 +431,13 @@ class AnthroDatabase {
   /// Devuelve cuántas se borraron.
   Future<int> deleteEmptyPatients() async {
     final db = await database;
-    return db.delete(
+    final removed = await db.delete(
       'patients',
       where: 'NOT EXISTS '
           '(SELECT 1 FROM measurements m WHERE m.patient_id = patients.id)',
     );
+    if (removed > 0) _notifyChanged();
+    return removed;
   }
 
   /// Depura registros inconsistentes: mediciones sin paciente e indicadores sin
@@ -431,7 +445,7 @@ class AnthroDatabase {
   /// Devuelve el total de filas eliminadas.
   Future<int> purgeOrphans() async {
     final db = await database;
-    return db.transaction((txn) async {
+    final removed = await db.transaction((txn) async {
       final measurements = await txn.delete(
         'measurements',
         where: 'NOT EXISTS '
@@ -444,6 +458,8 @@ class AnthroDatabase {
       );
       return measurements + indicators;
     });
+    if (removed > 0) _notifyChanged();
+    return removed;
   }
 
   /// Compacta el archivo de la base (`VACUUM`), recuperando el espacio liberado
@@ -462,6 +478,7 @@ class AnthroDatabase {
       await txn.delete('measurements');
       await txn.delete('patients');
     });
+    _notifyChanged();
   }
 
   /// Historial completo de mediciones de un paciente, más reciente primero.

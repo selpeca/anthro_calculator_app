@@ -7,6 +7,7 @@ import '../anthro/lms.dart';
 import '../anthro/reference.dart';
 import '../db/database.dart';
 import '../db/models.dart';
+import '../export/measurement_pdf.dart';
 import '../reference/reference_repository.dart';
 import 'common.dart';
 import 'growth_curve_view.dart';
@@ -47,6 +48,7 @@ class ChartsScreen extends StatefulWidget {
 class _ChartsScreenState extends State<ChartsScreen> {
   int _tab = 0;
   bool _analysis = true;
+  bool _exporting = false;
   List<SavedMeasurement> _history = const [];
 
   static const _allTabs = [
@@ -338,16 +340,53 @@ class _ChartsScreenState extends State<ChartsScreen> {
       ? 'Mediana'
       : '${z > 0 ? '+' : '−'}${z.abs().toStringAsFixed(0)} DS';
 
+  /// Genera el PDF de las curvas y abre la hoja de compartir. El nombre del
+  /// paciente se toma del historial cargado (todas las mediciones son del mismo
+  /// paciente); `null` si la medición aún no está guardada.
+  Future<void> _exportPdf() async {
+    if (_exporting) return;
+    setState(() => _exporting = true);
+    try {
+      await exportChartsPdf(
+        context,
+        input: _input,
+        result: _result,
+        history: _history,
+        currentMeasurementId: widget.currentMeasurementId,
+        patientName: _history.isNotEmpty ? _history.first.patientName : null,
+      );
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
   Widget _pdfPill(BuildContext context) {
     final p = AppPalette.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: p.isDark ? p.border : const Color(0xFFCFE2EF)),
+    return GestureDetector(
+      onTap: _exporting ? null : _exportPdf,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: p.isDark ? p.border : const Color(0xFFCFE2EF)),
+        ),
+        child: _exporting
+            ? SizedBox(
+                width: 22,
+                height: 13,
+                child: Center(
+                  child: SizedBox(
+                    width: 11,
+                    height: 11,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 1.6, color: p.primary),
+                  ),
+                ),
+              )
+            : Text('PDF',
+                style: TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.w500, color: p.primary)),
       ),
-      child: Text('PDF',
-          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: p.primary)),
     );
   }
 }

@@ -20,6 +20,7 @@ dependencies:
   path: ^1.9.1
   share_plus: ^13.3.0
   file_picker: ^12.0.0
+  pdf: ^3.12.0
 
 dev_dependencies:
   flutter_test:
@@ -37,6 +38,7 @@ flutter:
     - assets/reference/oms-2006/
     - assets/reference/oms-2006/tables/
     - assets/reference/col-2465/
+    - assets/fonts/
 
 flutter_launcher_icons:
   image_path: "assets/icon_light.png"

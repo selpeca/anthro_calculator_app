@@ -305,6 +305,30 @@ void main() {
       expect(await db.listPatients(), isEmpty);
     });
 
+    test('revision notifica ante guardar, limpiar y borrar datos', () async {
+      final db = AnthroDatabase.instance;
+      var ticks = 0;
+      void listener() => ticks++;
+      db.revision.addListener(listener);
+      addTearDown(() => db.revision.removeListener(listener));
+
+      await db.saveMeasurement(
+          patientName: 'Sofía', input: input(), result: result());
+      expect(ticks, 1); // guardar notifica
+
+      final raw = await db.database;
+      await raw.insert('patients',
+          {'name': 'Vacío', 'created_at': DateTime.now().toIso8601String()});
+      await db.deleteEmptyPatients();
+      expect(ticks, 2); // limpieza con cambios notifica
+
+      await db.deleteEmptyPatients();
+      expect(ticks, 2); // sin cambios no notifica
+
+      await db.deleteAllData();
+      expect(ticks, 3); // borrado total notifica
+    });
+
     test('vacuum se ejecuta sin error tras borrar datos', () async {
       final db = AnthroDatabase.instance;
       await db.saveMeasurement(

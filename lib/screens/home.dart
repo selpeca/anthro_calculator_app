@@ -35,6 +35,16 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _load();
+    // Refresca los agregados (lista y tendencia) ante cualquier cambio en la
+    // base hecho desde otras pantallas: guardar/actualizar mediciones o la
+    // limpieza/borrado de datos de la pantalla de base de datos.
+    AnthroDatabase.instance.revision.addListener(_load);
+  }
+
+  @override
+  void dispose() {
+    AnthroDatabase.instance.revision.removeListener(_load);
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -414,9 +424,9 @@ class _MedicionesTrendSectionState extends State<_MedicionesTrendSection> {
       _weeks.addAll(list);
       _earliestDate = earliest;
       _loadingWeeks = false;
-      _noMoreWeeks = stop;
+      // Solo las últimas 5 semanas: no se cargan semanas anteriores.
+      _noMoreWeeks = true;
     });
-    _maybeFillViewport();
   }
 
   /// Carga la siguiente página de semanas anteriores (hacia el pasado).
@@ -486,8 +496,11 @@ class _MedicionesTrendSectionState extends State<_MedicionesTrendSection> {
         onLoadOlder: _loadOlder,
       );
     }
+    final months =
+        _buildBuckets(widget.measurementDates, _ChartPeriod.month, DateTime.now());
     return _TrendChart(
-      data: _buildBuckets(widget.measurementDates, _ChartPeriod.month, DateTime.now()),
+      // Solo los últimos 5 meses.
+      data: months.length > 5 ? months.sublist(months.length - 5) : months,
       period: _ChartPeriod.month,
     );
   }
@@ -572,9 +585,8 @@ class _MedicionesTrendSectionState extends State<_MedicionesTrendSection> {
                 padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
                 child: Text(
                   _period == _ChartPeriod.week
-                      ? 'Desliza hacia la izquierda para ver más semanas '
-                          'anteriores (se cargan bajo demanda).'
-                      : 'Mediciones registradas en cada mes.',
+                      ? 'Mediciones de las últimas 5 semanas.'
+                      : 'Mediciones de los últimos 5 meses.',
                   style: TextStyle(fontSize: 10.5, height: 1.4, color: p.faint),
                 ),
               ),
