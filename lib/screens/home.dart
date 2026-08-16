@@ -282,6 +282,24 @@ DateTime _weekStart(DateTime d) {
   return day.subtract(Duration(days: day.weekday - 1));
 }
 
+/// Número de semana calendario ISO 8601: la semana 1 es la que contiene el
+/// primer jueves del año y las semanas empiezan en lunes. Se calcula en UTC
+/// para que los cambios de horario no desplacen el conteo de días.
+int _isoWeekNumber(DateTime d) {
+  final date = DateTime.utc(d.year, d.month, d.day);
+  final dayOfYear = date.difference(DateTime.utc(date.year, 1, 1)).inDays + 1;
+  final week = (dayOfYear - date.weekday + 10) ~/ 7;
+  if (week < 1) return _isoWeeksInYear(date.year - 1);
+  if (week > _isoWeeksInYear(date.year)) return 1;
+  return week;
+}
+
+/// Semanas ISO que tiene un año (52 o 53).
+int _isoWeeksInYear(int year) {
+  int p(int y) => (y + y ~/ 4 - y ~/ 100 + y ~/ 400) % 7;
+  return (p(year) == 4 || p(year - 1) == 3) ? 53 : 52;
+}
+
 const List<String> _monthNames = [
   'ene', 'feb', 'mar', 'abr', 'may', 'jun',
   'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
@@ -823,6 +841,7 @@ class _WeeklyTrendChart extends StatelessWidget {
                         maxCount: maxCount,
                         slotWidth: slot,
                         label: _weekLabel(d.start),
+                        weekNumber: _isoWeekNumber(d.start),
                         isCurrent: index == 0,
                         palette: palette,
                       );
@@ -858,6 +877,7 @@ class _WeekBar extends StatelessWidget {
     required this.maxCount,
     required this.slotWidth,
     required this.label,
+    required this.weekNumber,
     required this.isCurrent,
     required this.palette,
   });
@@ -866,6 +886,7 @@ class _WeekBar extends StatelessWidget {
   final int maxCount;
   final double slotWidth;
   final String label;
+  final int weekNumber;
   final bool isCurrent;
   final AppPalette palette;
 
@@ -921,17 +942,30 @@ class _WeekBar extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           SizedBox(
-            height: 16,
-            child: Center(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 9,
-                  fontWeight:
-                      isCurrent ? FontWeight.w600 : FontWeight.w400,
-                  color: isCurrent ? p.primary : p.muted,
+            height: 26,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight:
+                        isCurrent ? FontWeight.w600 : FontWeight.w400,
+                    color: isCurrent ? p.primary : p.muted,
+                  ),
                 ),
-              ),
+                const SizedBox(height: 1),
+                Text(
+                  'Sem $weekNumber',
+                  style: TextStyle(
+                    fontSize: 8,
+                    fontWeight:
+                        isCurrent ? FontWeight.w600 : FontWeight.w400,
+                    color: isCurrent ? p.primary : p.faint,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -951,7 +985,9 @@ class _WeekGridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     const topPad = 22.0;
-    const bottomPad = 22.0;
+    // Coincide con la zona inferior de _WeekBar (gap 6 + etiqueta 26) para que
+    // la línea base (0) quede alineada con la base de las barras.
+    const bottomPad = 32.0;
     final plotLeft = 28.0;
     final plotBottom = size.height - bottomPad;
     final plotH = plotBottom - topPad;
