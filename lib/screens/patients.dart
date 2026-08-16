@@ -3,6 +3,7 @@ import '../theme.dart';
 import '../db/database.dart';
 import '../db/models.dart';
 import '../export/measurement_export.dart';
+import '../import/measurement_import.dart';
 import '../widgets.dart';
 import 'patient_detail.dart';
 import 'patient_format.dart';
@@ -54,6 +55,73 @@ class _PatientsScreenState extends State<PatientsScreen> {
     messenger.hideCurrentSnackBar();
     if (!mounted) return;
     await exportAllMeasurements(context, all);
+  }
+
+  /// Importa mediciones desde un CSV con la estructura de la exportación.
+  /// Cada fila se agrupa por nombre de paciente (get-or-create en la base).
+  Future<void> _importCsv() async {
+    final parse = await pickAndParseCsv();
+    if (parse == null || !mounted) return; // el usuario canceló
+    if (parse.rows.isEmpty) {
+      final detail =
+          parse.errors.isEmpty ? '' : ' (${parse.errors.length} con error)';
+      _snack('No se encontraron mediciones válidas para importar$detail');
+      return;
+    }
+    final confirmed = await _confirmImport(parse);
+    if (confirmed != true || !mounted) return;
+    final saved = await importMeasurements(parse.rows);
+    if (!mounted) return;
+    await _load();
+    if (!mounted) return;
+    final omitted =
+        parse.errors.isEmpty ? '' : ' · ${parse.errors.length} omitidas';
+    _snack('Importadas $saved medicion${saved == 1 ? '' : 'es'}$omitted');
+  }
+
+  Future<bool?> _confirmImport(ImportParse parse) {
+    final p = AppPalette.of(context);
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: p.surface,
+        title: const Text('Importar mediciones'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+                'Se importarán ${parse.rows.length} medición'
+                '${parse.rows.length == 1 ? '' : 'es'}, agrupadas por nombre de paciente.',
+                style: TextStyle(fontSize: 13, color: p.onSurface)),
+            if (parse.errors.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text('${parse.errors.length} fila(s) se omitirán por errores:',
+                  style: TextStyle(fontSize: 12, color: p.muted)),
+              const SizedBox(height: 4),
+              ...parse.errors.take(5).map((e) => Text('· $e',
+                  style: TextStyle(fontSize: 11.5, height: 1.4, color: p.muted))),
+              if (parse.errors.length > 5)
+                Text('· … y ${parse.errors.length - 5} más',
+                    style: TextStyle(fontSize: 11.5, color: p.muted)),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancelar')),
+          TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Importar')),
+        ],
+      ),
+    );
+  }
+
+  void _snack(String msg) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(msg)));
   }
 
   @override
@@ -115,7 +183,7 @@ class _PatientsScreenState extends State<PatientsScreen> {
                           ],
                         ),
                       ),
-                      SecondaryButton('Importar', onTap: () {}),
+                      SecondaryButton('Importar', onTap: _importCsv),
                       const SizedBox(width: 8),
                       PrimaryButton('Exportar', expand: false, onTap: _exportAll),
                     ],
