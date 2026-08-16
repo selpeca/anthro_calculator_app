@@ -6,6 +6,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:anthro_calculator_app/anthro/age.dart';
 import 'package:anthro_calculator_app/anthro/indicators.dart';
 import 'package:anthro_calculator_app/anthro/reference.dart';
+import 'package:anthro_calculator_app/charts.dart';
 import 'package:anthro_calculator_app/data.dart';
 import 'package:anthro_calculator_app/db/database.dart';
 import 'package:anthro_calculator_app/main.dart';
@@ -305,6 +306,11 @@ void main() {
     final patients = await AnthroDatabase.instance.listPatients();
     expect(patients, hasLength(1));
 
+    // Superficie alta: la ficha ahora incluye la curva de crecimiento, que
+    // empuja la lista del historial fuera del viewport perezoso por defecto.
+    await tester.binding.setSurfaceSize(const Size(800, 1800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
     await tester.pumpWidget(_wrap(PatientDetailScreen(patient: patients.first)));
     await tester.pumpAndSettle();
 
@@ -352,6 +358,9 @@ void main() {
         .saveMeasurement(patientName: 'Sofía Restrepo', input: _sampleInput(), result: _sampleResult());
     final patients = await AnthroDatabase.instance.listPatients();
 
+    await tester.binding.setSurfaceSize(const Size(800, 1800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
     await tester.pumpWidget(_wrap(PatientDetailScreen(patient: patients.first)));
     await tester.pumpAndSettle();
 
@@ -363,6 +372,29 @@ void main() {
     // Se abrió la calculadora con la fecha de nacimiento del paciente.
     expect(find.text('Cálculo antropométrico'), findsOneWidget);
     expect(find.text('14/05/2024'), findsOneWidget);
+  });
+
+  testWidgets('la ficha incrusta la curva de crecimiento y abre las curvas completas',
+      (tester) async {
+    await AnthroDatabase.instance.saveMeasurement(
+        patientName: 'Sofía Restrepo', input: _sampleInput(), result: _sampleResult());
+    final patients = await AnthroDatabase.instance.listPatients();
+
+    await tester.binding.setSurfaceSize(const Size(800, 1800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(_wrap(PatientDetailScreen(patient: patients.first)));
+    await tester.pumpAndSettle();
+
+    // La curva LMS queda incrustada en la ficha.
+    expect(find.text('Curva de crecimiento · Peso/Edad'), findsOneWidget);
+    expect(find.byType(LmsChart), findsOneWidget);
+
+    // "Ver todas" abre la pantalla completa de curvas.
+    await tester.tap(find.text('Ver todas'));
+    await tester.pumpAndSettle();
+    expect(find.text('Curvas de crecimiento'), findsOneWidget);
+    expect(find.text('Peso/Edad'), findsOneWidget); // pestaña activa
   });
 
   testWidgets('ThemeTogglePill toggles theme state on tap', (tester) async {

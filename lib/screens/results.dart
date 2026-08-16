@@ -15,6 +15,7 @@ class ResultsScreen extends StatelessWidget {
     required this.result,
     this.savedMeasurementId,
     this.savedPatientName,
+    this.patientId,
   });
 
   /// Entrada del cálculo; se persiste junto con el resultado.
@@ -25,6 +26,10 @@ class ResultsScreen extends StatelessWidget {
   /// nombre permiten "Actualizar" en lugar de duplicar.
   final int? savedMeasurementId;
   final String? savedPatientName;
+
+  /// Paciente asociado (si se conoce), para superponer su trayectoria histórica
+  /// en las gráficas. `null` si aún no está guardado.
+  final int? patientId;
 
   @override
   Widget build(BuildContext context) {
@@ -124,8 +129,13 @@ class ResultsScreen extends StatelessWidget {
             children: [
               Expanded(
                 child: PrimaryButton('Ver gráficas', onTap: () {
-                  Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const ChartsScreen()));
+                  Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => ChartsScreen(
+                            input: input,
+                            result: result,
+                            patientId: patientId,
+                            currentMeasurementId: savedMeasurementId,
+                          )));
                 }),
               ),
               const SizedBox(width: 10),

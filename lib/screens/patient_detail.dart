@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../anthro/age.dart';
+import '../anthro/reference.dart';
 import '../db/database.dart';
 import '../db/models.dart';
 import '../widgets.dart';
 import '../charts.dart';
+import 'charts_screen.dart';
 import 'common.dart';
 import 'calculator.dart';
+import 'growth_curve_view.dart';
 import 'patient_format.dart';
 
 /// Patient file with measurement history (design 1j). El historial se lee de
@@ -50,6 +53,19 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
         builder: (_) =>
             CalculatorScreen(patient: widget.patient, measurement: m)));
     if (mounted) await _load();
+  }
+
+  /// Abre la pantalla completa de curvas de crecimiento con la última medición
+  /// como punto actual y todo el historial del paciente superpuesto.
+  void _openCharts(SavedMeasurement latest) {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => ChartsScreen(
+        input: latest.toInput(),
+        result: latest.toResult(),
+        patientId: widget.patient.id,
+        currentMeasurementId: latest.id,
+      ),
+    ));
   }
 
   @override
@@ -158,6 +174,55 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                     const SizedBox(height: 8),
                     ZScoreChart(dark: true, points: _zChartPoints(history)),
                   ],
+                ),
+              ),
+            ),
+            // Growth curve (LMS) with the patient's trajectory; tap for the
+            // full interactive charts (all indicators + análisis).
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: InkWell(
+                onTap: () => _openCharts(latest),
+                borderRadius: BorderRadius.circular(Radii.card),
+                child: SectionCard(
+                  padding: const EdgeInsets.fromLTRB(12, 14, 12, 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('Curva de crecimiento · Peso/Edad',
+                                style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: p.onSurface)),
+                            Row(
+                              children: [
+                                Text('Ver todas',
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w500,
+                                        color: p.primary)),
+                                Icon(Icons.chevron_right,
+                                    size: 16, color: p.primary),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      GrowthCurveChart(
+                        kind: IndicatorKind.weightForAge,
+                        input: latest.toInput(),
+                        result: latest.toResult(),
+                        history: history,
+                        currentMeasurementId: latest.id,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -281,19 +346,6 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
               style: TextStyle(fontSize: 12, color: p.muted)),
         ],
       ),
-    );
-  }
-
-  Widget _pill(BuildContext context, String label) {
-    final p = AppPalette.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: p.isDark ? const Color(0xFF2B4356) : const Color(0xFFCFE2EF)),
-      ),
-      child: Text(label,
-          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: p.primary)),
     );
   }
 

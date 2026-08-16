@@ -4,6 +4,8 @@
 library;
 
 import '../data.dart';
+import '../anthro/age.dart';
+import '../anthro/indicators.dart';
 import '../anthro/reference.dart';
 import '../theme.dart' show ClinicalStatus;
 
@@ -100,4 +102,45 @@ class SavedIndicator {
   final String classification;
   final ClinicalStatus status;
   final String? deficitNote;
+}
+
+/// Reconstruye la entrada y el resultado del cálculo desde una medición
+/// guardada, para reabrir pantallas (gráficas, resultados) sin recalcular.
+extension SavedMeasurementDomain on SavedMeasurement {
+  AnthroInput toInput() => AnthroInput(
+        birthDate: birthDate,
+        measurementDate: measurementDate,
+        sex: sex,
+        weightKg: weightKg,
+        statureCm: statureCm,
+        position: position,
+        headCircumferenceCm: headCircumferenceCm,
+        standardId: standardId,
+      );
+
+  AnthroResult toResult() => AnthroResult(
+        age: Age(
+            days: ageDays, years: ageYears, months: ageMonths, remDays: ageRemDays),
+        sex: sex,
+        standardId: standardId,
+        standardLabel: standardLabel,
+        weightKg: weightKg,
+        statureCm: statureCm,
+        headCircumferenceCm: headCircumferenceCm,
+        bmi: bmi,
+        indicators: [
+          for (final i in indicators)
+            Indicator(
+              name: i.name,
+              z: i.z,
+              percentile: i.percentile,
+              percentileLabel: i.percentileLabel,
+              classification: i.classification,
+              status: i.status,
+              deficitNote: i.deficitNote,
+            ),
+        ],
+        overall: overall,
+        overallLabel: overallLabel,
+      );
 }

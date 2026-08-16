@@ -196,6 +196,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
     int? savedMeasurementId;
     String? savedPatientName;
+    int? savedPatientId;
     final editing = widget.measurement;
     if (_save) {
       if (editing != null) {
@@ -209,6 +210,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         );
         savedMeasurementId = editing.id;
         savedPatientName = editing.patientName;
+        savedPatientId = editing.patientId;
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(
@@ -236,6 +238,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           result: result,
         );
         savedPatientName = targetName;
+        savedPatientId = targetId;
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Medición guardada en el historial de $targetName'),
@@ -250,6 +253,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         result: result,
         savedMeasurementId: savedMeasurementId,
         savedPatientName: savedPatientName,
+        patientId: savedPatientId,
       ),
     ));
   }

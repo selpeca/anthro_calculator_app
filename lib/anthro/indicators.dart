@@ -228,7 +228,7 @@ Indicator _build(
   if (status == ClinicalStatus.severe && z < 0) {
     // Déficit real frente al corte −2 DS, en la unidad de la medida.
     final cut = valueFromLms(-2, lms);
-    final unit = _unitFor(kind);
+    final unit = unitForIndicator(kind);
     deficit = 'Déficit frente a −2 DS: '
         '${(cut - value).abs().toStringAsFixed(2)} $unit. '
         'Confirmar técnica de medición y comparar con controles previos.';
@@ -244,7 +244,12 @@ Indicator _build(
   );
 }
 
-String _unitFor(IndicatorKind kind) => switch (kind) {
+/// Nombre visible del indicador: el mismo que muestra `results.dart` y con el
+/// que se guardan/consultan los indicadores en la base local.
+String nameForIndicator(IndicatorKind kind) => _kindNames[kind]!;
+
+/// Unidad de la medida de un indicador (para el análisis cuantitativo y ejes).
+String unitForIndicator(IndicatorKind kind) => switch (kind) {
       IndicatorKind.weightForAge => 'kg',
       IndicatorKind.weightForStature => 'kg',
       IndicatorKind.bmiForAge => 'kg/m²',

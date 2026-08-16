@@ -1,13 +1,44 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../widgets.dart';
-import '../charts.dart';
+import '../anthro/growth_curve.dart';
+import '../anthro/indicators.dart';
+import '../anthro/lms.dart';
+import '../anthro/reference.dart';
+import '../db/database.dart';
+import '../db/models.dart';
+import '../reference/reference_repository.dart';
 import 'common.dart';
+import 'growth_curve_view.dart';
 
-/// Growth curves (design 1e): indicator tabs, LMS chart legend, and an
-/// expandable quantitative deficit/excess analysis.
+/// Una pestaña de la pantalla de curvas: su etiqueta y el indicador que grafica.
+class _CurveTab {
+  const _CurveTab(this.label, this.kind);
+  final String label;
+  final IndicatorKind kind;
+}
+
+/// Curvas de crecimiento con datos reales del paciente: bandas LMS de la
+/// referencia, trayectoria histórica (controles guardados) + punto de la
+/// medición actual, y análisis cuantitativo frente a cada corte de DS.
 class ChartsScreen extends StatefulWidget {
-  const ChartsScreen({super.key});
+  const ChartsScreen({
+    super.key,
+    required this.input,
+    required this.result,
+    this.patientId,
+    this.currentMeasurementId,
+  });
+
+  final AnthroInput input;
+  final AnthroResult result;
+
+  /// Paciente cuyo historial se superpone (o `null` si no está guardado).
+  final int? patientId;
+
+  /// Id de la medición actual dentro del historial, para no duplicarla como
+  /// punto histórico y punto actual a la vez.
+  final int? currentMeasurementId;
 
   @override
   State<ChartsScreen> createState() => _ChartsScreenState();
@@ -15,18 +46,64 @@ class ChartsScreen extends StatefulWidget {
 
 class _ChartsScreenState extends State<ChartsScreen> {
   int _tab = 0;
-  bool _deficit = true;
+  bool _analysis = true;
+  List<SavedMeasurement> _history = const [];
 
-  static const _tabs = ['Peso/Edad', 'Talla/Edad', 'IMC/Edad', 'PC/Edad'];
+  static const _allTabs = [
+    _CurveTab('Peso/Edad', IndicatorKind.weightForAge),
+    _CurveTab('Talla/Edad', IndicatorKind.statureForAge),
+    _CurveTab('IMC/Edad', IndicatorKind.bmiForAge),
+    _CurveTab('PC/Edad', IndicatorKind.headCircumferenceForAge),
+  ];
+
+  AnthroResult get _result => widget.result;
+  AnthroInput get _input => widget.input;
+
+  /// Pestañas visibles: PC/Edad solo si se midió perímetro cefálico.
+  List<_CurveTab> get _tabs => [
+        for (final t in _allTabs)
+          if (t.kind != IndicatorKind.headCircumferenceForAge ||
+              _result.headCircumferenceCm != null)
+            t,
+      ];
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.patientId != null) _loadHistory();
+  }
+
+  Future<void> _loadHistory() async {
+    final history =
+        await AnthroDatabase.instance.measurementsForPatient(widget.patientId!);
+    if (!mounted) return;
+    setState(() => _history = history);
+  }
+
+  /// Valor de la medición actual para el indicador (misma regla que la gráfica).
+  double? _currentValue(IndicatorKind kind) => growthValue(kind,
+      weightKg: _result.weightKg,
+      statureCm: _input.statureCm,
+      position: _input.position,
+      ageDays: _result.age.days,
+      bmi: _result.bmi,
+      headCircumferenceCm: _result.headCircumferenceCm);
 
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
+    final tabs = _tabs;
+    final tab = tabs[_tab.clamp(0, tabs.length - 1)];
+    final ref = ReferenceRepository.reference(_result.standardId);
+    final table = ref?.tableFor(tab.kind, _result.sex, ageDays: _result.age.days);
+    final sexWord = _result.sex == Sex.female ? 'niñas' : 'niños';
+    final stdShort = _result.standardId.startsWith('oms') ? 'OMS' : 'Colombia';
+
     return Scaffold(
       backgroundColor: p.background,
       appBar: ScreenHeader(
         title: 'Curvas de crecimiento',
-        subtitle: 'OMS · niñas 0–60 meses',
+        subtitle: '$stdShort · $sexWord',
         trailing: _pdfPill(context),
       ),
       body: ListView(
@@ -36,7 +113,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
             height: 34,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              itemCount: _tabs.length,
+              itemCount: tabs.length,
               separatorBuilder: (_, _) => const SizedBox(width: 6),
               itemBuilder: (context, i) {
                 final active = i == _tab;
@@ -50,11 +127,13 @@ class _ChartsScreenState extends State<ChartsScreen> {
                       borderRadius: BorderRadius.circular(999),
                       border: active ? null : Border.all(color: p.border),
                     ),
-                    child: Text(_tabs[i],
+                    child: Text(tabs[i].label,
                         style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: active ? (p.isDark ? p.background : Colors.white) : p.muted)),
+                            color: active
+                                ? (p.isDark ? p.background : Colors.white)
+                                : p.muted)),
                   ),
                 );
               },
@@ -63,75 +142,201 @@ class _ChartsScreenState extends State<ChartsScreen> {
           const SizedBox(height: 12),
           SectionCard(
             padding: const EdgeInsets.fromLTRB(12, 14, 12, 10),
-            child: Column(
-              children: [
-                const LmsChart(),
-                const SizedBox(height: 10),
-                Container(
-                  padding: const EdgeInsets.only(top: 10),
-                  decoration: BoxDecoration(
-                    border: Border(top: BorderSide(color: p.borderSoft)),
-                  ),
-                  child: Wrap(
-                    spacing: 12,
-                    runSpacing: 8,
-                    children: [
-                      _legend(context, const Color(0xFF1E5F8C), 'Mediana (M)', line: true),
-                      _legend(context, const Color(0xFF7FB2D4), '±1 / ±2 DS', line: true),
-                      _legend(context, const Color(0xFFE3A2A2), '±3 DS', line: true),
-                      _legend(context, const Color(0xFFC0392B), 'Paciente'),
-                    ],
-                  ),
-                ),
-              ],
+            child: GrowthCurveChart(
+              key: ValueKey(tab.kind),
+              kind: tab.kind,
+              input: _input,
+              result: _result,
+              history: _history,
+              currentMeasurementId: widget.currentMeasurementId,
             ),
           ),
           const SizedBox(height: 12),
-          SectionCard(
-            padding: EdgeInsets.zero,
-            child: Column(
-              children: [
-                InkWell(
-                  onTap: () => setState(() => _deficit = !_deficit),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Análisis cuantitativo',
-                                  style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: p.onSurface)),
-                              const SizedBox(height: 2),
-                              Text('Déficit / exceso frente a cada curva',
-                                  style: TextStyle(fontSize: 11, color: p.muted)),
-                            ],
-                          ),
-                        ),
-                        Chevron(expanded: _deficit),
-                      ],
-                    ),
-                  ),
-                ),
-                AnimatedCrossFade(
-                  duration: const Duration(milliseconds: 200),
-                  crossFadeState:
-                      _deficit ? CrossFadeState.showFirst : CrossFadeState.showSecond,
-                  firstChild: _deficitTable(context),
-                  secondChild: const SizedBox(width: double.infinity),
-                ),
-              ],
-            ),
-          ),
+          _analysisCard(context, tab, table),
           const Footer(),
         ],
       ),
     );
   }
+
+  // ── Análisis cuantitativo ──────────────────────────────────────────────────
+
+  Widget _analysisCard(BuildContext context, _CurveTab tab, ReferenceTable? table) {
+    final p = AppPalette.of(context);
+    final lms = table?.lmsAt(_result.age.days.toDouble());
+    final cv = _currentValue(tab.kind);
+    final canShow = lms != null && cv != null && !cv.isNaN;
+
+    return SectionCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
+          InkWell(
+            onTap: canShow ? () => setState(() => _analysis = !_analysis) : null,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Análisis cuantitativo',
+                            style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: p.onSurface)),
+                        const SizedBox(height: 2),
+                        Text('Déficit / exceso frente a cada curva',
+                            style: TextStyle(fontSize: 11, color: p.muted)),
+                      ],
+                    ),
+                  ),
+                  if (canShow) Chevron(expanded: _analysis),
+                ],
+              ),
+            ),
+          ),
+          if (canShow)
+            AnimatedCrossFade(
+              duration: const Duration(milliseconds: 200),
+              crossFadeState:
+                  _analysis ? CrossFadeState.showFirst : CrossFadeState.showSecond,
+              firstChild: _analysisTable(context, tab.kind, lms, cv),
+              secondChild: const SizedBox(width: double.infinity),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+              child: Text(
+                  'Sin análisis: la medición está fuera del rango de la curva.',
+                  style: TextStyle(fontSize: 11.5, height: 1.4, color: p.muted)),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _analysisTable(
+      BuildContext context, IndicatorKind kind, Lms lms, double patientValue) {
+    final p = AppPalette.of(context);
+    final unit = unitForIndicator(kind);
+    final rows = deficitRows(lms, patientValue);
+    final median = valueFromLms(0, lms);
+    final gainToMedian = median - patientValue;
+    final belowMedian = gainToMedian >= 0;
+    // Umbral de la zona sana más cercano: −1 DS si está por debajo, +1 si arriba.
+    final riskZ = belowMedian ? -1.0 : 1.0;
+    final riskValue = valueFromLms(riskZ, lms);
+
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: p.borderSoft)),
+      ),
+      padding: const EdgeInsets.fromLTRB(14, 4, 14, 12),
+      child: Column(
+        children: [
+          for (var i = 0; i < rows.length; i++)
+            _row(context, rows[i], unit, last: i == rows.length - 1),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+            decoration: BoxDecoration(
+              color: p.primaryTint,
+              borderRadius: BorderRadius.circular(Radii.control),
+            ),
+            child: Text.rich(
+              TextSpan(
+                style: TextStyle(fontSize: 11.5, height: 1.45, color: p.onPrimaryTint),
+                children: belowMedian
+                    ? [
+                        const TextSpan(
+                            text: 'Para alcanzar la mediana a esta edad se requieren '),
+                        TextSpan(
+                            text: '+${gainToMedian.abs().toStringAsFixed(2)} $unit',
+                            style: const TextStyle(fontWeight: FontWeight.w700)),
+                        const TextSpan(
+                            text: '. El umbral de la zona de riesgo (−1 DS) es '),
+                        TextSpan(
+                            text: '${riskValue.toStringAsFixed(1)} $unit',
+                            style: const TextStyle(fontWeight: FontWeight.w700)),
+                        const TextSpan(text: '.'),
+                      ]
+                    : [
+                        const TextSpan(text: 'La medición está '),
+                        TextSpan(
+                            text: '+${gainToMedian.abs().toStringAsFixed(2)} $unit',
+                            style: const TextStyle(fontWeight: FontWeight.w700)),
+                        const TextSpan(
+                            text: ' por encima de la mediana. El umbral de la zona de '
+                                'riesgo (+1 DS) es '),
+                        TextSpan(
+                            text: '${riskValue.toStringAsFixed(1)} $unit',
+                            style: const TextStyle(fontWeight: FontWeight.w700)),
+                        const TextSpan(text: '.'),
+                      ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _row(BuildContext context, DeficitRow row, String unit, {bool last = false}) {
+    final p = AppPalette.of(context);
+    final median = row.z == 0;
+    final abs = '${row.value.toStringAsFixed(1)} $unit';
+    final deltaColor = median
+        ? p.onSurface
+        : (row.z > 0 ? p.primary : p.ok);
+    final deltaSign = row.delta >= 0 ? '+' : '−';
+    var deltaText = '$deltaSign${row.delta.abs().toStringAsFixed(2)} $unit';
+    if (median) {
+      final pct = row.value == 0 ? 0.0 : row.delta / row.value * 100;
+      final pctSign = pct >= 0 ? '+' : '−';
+      deltaText = '$deltaText ($pctSign${pct.abs().toStringAsFixed(1)} %)';
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: BoxDecoration(
+        border: last ? null : Border(bottom: BorderSide(color: p.borderSoft)),
+        color: median ? (p.isDark ? p.surfaceAlt : const Color(0xFFF7FAFC)) : null,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text.rich(
+              TextSpan(
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: median ? FontWeight.w600 : FontWeight.w500,
+                    color: median ? p.onSurface : p.muted),
+                children: [
+                  TextSpan(text: '${_zLabel(row.z)}  '),
+                  TextSpan(
+                      text: abs,
+                      style: TextStyle(
+                          fontSize: 11, fontFamily: 'monospace', color: p.faint)),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(deltaText,
+              style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  fontFeatures: kTabular,
+                  color: deltaColor)),
+        ],
+      ),
+    );
+  }
+
+  String _zLabel(double z) => z == 0
+      ? 'Mediana'
+      : '${z > 0 ? '+' : '−'}${z.abs().toStringAsFixed(0)} DS';
 
   Widget _pdfPill(BuildContext context) {
     final p = AppPalette.of(context);
@@ -143,99 +348,6 @@ class _ChartsScreenState extends State<ChartsScreen> {
       ),
       child: Text('PDF',
           style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: p.primary)),
-    );
-  }
-
-  Widget _legend(BuildContext context, Color color, String label, {bool line = false}) {
-    final p = AppPalette.of(context);
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        line
-            ? Container(width: 14, height: 2, color: color)
-            : Container(
-                width: 9,
-                height: 9,
-                decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-        const SizedBox(width: 6),
-        Text(label, style: TextStyle(fontSize: 10.5, color: p.muted)),
-      ],
-    );
-  }
-
-  Widget _deficitTable(BuildContext context) {
-    final p = AppPalette.of(context);
-    return Container(
-      decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: p.borderSoft)),
-      ),
-      padding: const EdgeInsets.fromLTRB(14, 4, 14, 12),
-      child: Column(
-        children: [
-          _row(context, '+3 DS', '18.4 kg', '−6.00 kg', p.primary),
-          _row(context, '+2 DS', '16.3 kg', '−3.90 kg', p.primary),
-          _row(context, 'Mediana', '12.9 kg', '−0.50 kg (−3.9 %)', p.onSurface, strong: true),
-          _row(context, '−2 DS', '10.2 kg', '+2.20 kg', p.ok),
-          _row(context, '−3 DS', '9.2 kg', '+3.20 kg', p.ok, last: true),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-            decoration: BoxDecoration(
-              color: p.primaryTint,
-              borderRadius: BorderRadius.circular(Radii.control),
-            ),
-            child: Text.rich(
-              TextSpan(
-                style: TextStyle(fontSize: 11.5, height: 1.45, color: p.onPrimaryTint),
-                children: const [
-                  TextSpan(text: 'Para alcanzar la mediana de peso a esta edad se requieren '),
-                  TextSpan(text: '+0.50 kg', style: TextStyle(fontWeight: FontWeight.w700)),
-                  TextSpan(text: '. Para salir de la zona de riesgo (−1 DS) el peso mínimo es '),
-                  TextSpan(text: '11.4 kg', style: TextStyle(fontWeight: FontWeight.w700)),
-                  TextSpan(text: '.'),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _row(BuildContext context, String label, String abs, String delta, Color deltaColor,
-      {bool strong = false, bool last = false}) {
-    final p = AppPalette.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      decoration: BoxDecoration(
-        border: last ? null : Border(bottom: BorderSide(color: p.borderSoft)),
-        color: strong ? (p.isDark ? p.surfaceAlt : const Color(0xFFF7FAFC)) : null,
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text.rich(
-            TextSpan(
-              style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: strong ? FontWeight.w600 : FontWeight.w500,
-                  color: strong ? p.onSurface : p.muted),
-              children: [
-                TextSpan(text: '$label  '),
-                TextSpan(
-                    text: abs,
-                    style: TextStyle(fontSize: 11, fontFamily: 'monospace', color: p.faint)),
-              ],
-            ),
-          ),
-          Text(delta,
-              style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                  fontFeatures: kTabular,
-                  color: deltaColor)),
-        ],
-      ),
     );
   }
 }

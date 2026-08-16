@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'theme.dart';
 
 /// Reference standard selectable in the calculator.
@@ -54,12 +53,6 @@ class Indicator {
 
 /// Pure anthropometric helpers translated from the design's `renderVals`.
 class Anthro {
-  /// Curva de mediana de peso (kg) aproximada por edad en meses. Solo la usan
-  /// las gráficas de `charts.dart` (fuera de alcance de este cálculo real).
-  @Deprecated('Curva simulada; el cálculo real usa ReferenceTable / WHO LMS.')
-  static double medianWeight(double months) =>
-      3.3 + 6.5 * (1 - math.exp(-months / 4.5)) + 0.15 * months;
-
   static double? imc(double? kg, double? cm) {
     if (kg == null || cm == null || kg <= 0 || cm <= 0) return null;
     final m = cm / 100.0;
