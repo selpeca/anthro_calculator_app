@@ -12,6 +12,7 @@ import 'package:anthro_calculator_app/db/database.dart';
 import 'package:anthro_calculator_app/main.dart';
 import 'package:anthro_calculator_app/reference/reference_repository.dart';
 import 'package:anthro_calculator_app/screens/calculator.dart';
+import 'package:anthro_calculator_app/screens/charts_screen.dart';
 import 'package:anthro_calculator_app/screens/home.dart';
 import 'package:anthro_calculator_app/screens/patient_detail.dart';
 import 'package:anthro_calculator_app/screens/patients.dart';
@@ -233,7 +234,7 @@ void main() {
     expect(patients.first.measurementCount, 2);
   });
 
-  testWidgets('con _save activo el botón de resultados dice Actualizar y actualiza', (tester) async {
+  testWidgets('con _save activo los resultados no repiten el guardado y abren las gráficas', (tester) async {
     await tester.pumpWidget(_wrap(
       CalculatorScreen(clock: () => DateTime(2026, 8, 15)),
     ));
@@ -256,35 +257,22 @@ void main() {
     await tester.tap(find.widgetWithText(PrimaryButton, 'Guardar'));
     await tester.pumpAndSettle();
 
-    // Como ya se guardó con _save, el botón ofrece Actualizar (al pie de la
-    // lista de resultados, que es perezosa).
+    // Como ya se guardó con _save, el pie de resultados solo ofrece volver al
+    // inicio y ver las gráficas (la lista es perezosa: hay que desplazarla).
     expect(find.text('Resultados'), findsOneWidget);
     await tester.scrollUntilVisible(
-        find.widgetWithText(SecondaryButton, 'Actualizar'), 300,
+        find.widgetWithText(PrimaryButton, 'Ir al inicio'), 300,
         scrollable: find.byType(Scrollable).first);
-    expect(find.widgetWithText(SecondaryButton, 'Actualizar'), findsOneWidget);
+    expect(find.widgetWithText(SecondaryButton, 'Guardar'), findsNothing);
 
-    await tester.tap(find.widgetWithText(SecondaryButton, 'Actualizar'));
+    // El icono abre las curvas sin duplicar la medición.
+    await tester.tap(find.byIcon(Icons.insights_rounded));
     await tester.pumpAndSettle();
+    expect(find.byType(ChartsScreen), findsOneWidget);
 
-    // El diálogo viene precargado; confirmar actualiza en lugar de duplicar.
-    expect(find.text('¿Con qué paciente se guarda esta medición?'), findsOneWidget);
-    await tester.tap(find.widgetWithText(PrimaryButton, 'Guardar'));
-    await tester.pumpAndSettle();
-
-    // El snackbar del guardado inicial aún se muestra; dejarlo expirar para
-    // que aparezca el de actualización.
-    await tester.pump(const Duration(seconds: 4));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Medición actualizada en el historial de Sofía Restrepo'),
-        findsOneWidget);
     final patients = await AnthroDatabase.instance.listPatients();
     expect(patients, hasLength(1));
     expect(patients.first.measurementCount, 1);
-    final history =
-        await AnthroDatabase.instance.measurementsForPatient(patients.first.id);
-    expect(history.single.updatedAt, isNotNull);
   });
 
   testWidgets('PatientsScreen lista pacientes guardados desde la BD', (tester) async {

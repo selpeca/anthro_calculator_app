@@ -128,38 +128,19 @@ class ResultsScreen extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: PrimaryButton('Ver gráficas', onTap: () {
-                  Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => ChartsScreen(
-                            input: input,
-                            result: result,
-                            patientId: patientId,
-                            currentMeasurementId: savedMeasurementId,
-                          )));
+                child: PrimaryButton('Ir al inicio', onTap: () {
+                  // Cierra resultados y calculadora: el home es la primera ruta.
+                  Navigator.of(context).popUntil((route) => route.isFirst);
                 }),
               ),
               const SizedBox(width: 10),
-              SecondaryButton(savedMeasurementId != null ? 'Actualizar' : 'Guardar',
-                  onTap: () async {
-                final target = await promptPatientName(context,
-                    initialName: savedPatientName);
-                if (target == null || !context.mounted) return;
-                final savedId = savedMeasurementId;
-                if (savedId != null) {
-                  await AnthroDatabase.instance.updateMeasurement(
-                    measurementId: savedId,
-                    patientName: target.name,
-                    patientId: target.patientId,
-                    input: input,
-                    result: result,
-                  );
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                        content: Text(
-                            'Medición actualizada en el historial de ${target.name}')),
-                  );
-                } else {
+              // La medición ya guardada no se reedita aquí; solo se ofrece
+              // guardar cuando aún no está en el historial.
+              if (savedMeasurementId == null) ...[
+                SecondaryButton('Guardar', onTap: () async {
+                  final target = await promptPatientName(context,
+                      initialName: savedPatientName);
+                  if (target == null || !context.mounted) return;
                   await AnthroDatabase.instance.saveMeasurement(
                     patientName: target.name,
                     patientId: target.patientId,
@@ -172,7 +153,18 @@ class ResultsScreen extends StatelessWidget {
                         content: Text(
                             'Medición guardada en el historial de ${target.name}')),
                   );
-                }
+                }),
+                const SizedBox(width: 10),
+              ],
+              SecondaryButton.icon(Icons.insights_rounded,
+                  tooltip: 'Ver gráficas', onTap: () {
+                Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => ChartsScreen(
+                          input: input,
+                          result: result,
+                          patientId: patientId,
+                          currentMeasurementId: savedMeasurementId,
+                        )));
               }),
             ],
           ),

@@ -235,17 +235,30 @@ class PrimaryButton extends StatelessWidget {
 
 /// Outlined secondary button.
 class SecondaryButton extends StatelessWidget {
-  const SecondaryButton(this.label, {super.key, this.onTap});
-  final String label;
+  const SecondaryButton(String this.label, {super.key, this.onTap})
+      : icon = null,
+        tooltip = null;
+
+  /// Variante compacta solo con icono; [tooltip] describe la acción para
+  /// lectores de pantalla y al mantener presionado.
+  const SecondaryButton.icon(IconData this.icon,
+      {super.key, this.onTap, this.tooltip})
+      : label = null;
+
+  final String? label;
+  final IconData? icon;
+  final String? tooltip;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    return GestureDetector(
+    final iconOnly = icon != null;
+    final button = GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+        padding: EdgeInsets.symmetric(
+            vertical: iconOnly ? 13 : 14, horizontal: iconOnly ? 14 : 16),
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: p.isDark ? Colors.transparent : p.surface,
@@ -253,15 +266,23 @@ class SecondaryButton extends StatelessWidget {
           border: Border.all(
               color: p.isDark ? p.border : const Color(0xFFCFE2EF), width: 1.5),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: p.primary,
-          ),
-        ),
+        child: iconOnly
+            ? Icon(icon, size: 20, color: p.primary)
+            : Text(
+                label!,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: p.primary,
+                ),
+              ),
       ),
+    );
+    final label_ = tooltip;
+    if (label_ == null) return button;
+    return Tooltip(
+      message: label_,
+      child: Semantics(button: true, label: label_, child: button),
     );
   }
 }
