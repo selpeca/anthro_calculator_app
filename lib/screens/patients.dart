@@ -21,7 +21,7 @@ class _PatientsScreenState extends State<PatientsScreen> {
   int _filter = 0;
   List<SavedPatient>? _patients;
 
-  static const _filters = ['Todos', 'Con alerta', 'Prematuros', 'PC'];
+  static const _filters = ['Todos', 'Con alerta'];
 
   @override
   void initState() {
