@@ -5,6 +5,7 @@ import '../widgets.dart';
 import '../anthro/indicators.dart';
 import '../anthro/reference.dart';
 import '../db/database.dart';
+import '../export/measurement_export.dart';
 import 'common.dart';
 import 'charts_screen.dart';
 
@@ -42,7 +43,11 @@ class ResultsScreen extends StatelessWidget {
       appBar: ScreenHeader(
         title: 'Resultados',
         subtitle: subtitle,
-        trailing: _pillButton(context, 'Exportar'),
+        trailing: GestureDetector(
+          onTap: () => exportSingleMeasurement(context,
+              input: input, result: result, patientName: savedPatientName),
+          child: _pillButton(context, 'Exportar'),
+        ),
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../db/database.dart';
 import '../db/models.dart';
+import '../export/measurement_export.dart';
 import '../widgets.dart';
 import 'patient_detail.dart';
 import 'patient_format.dart';
@@ -32,6 +33,27 @@ class _PatientsScreenState extends State<PatientsScreen> {
     final patients = await AnthroDatabase.instance.listPatients();
     if (!mounted) return;
     setState(() => _patients = patients);
+  }
+
+  /// Reúne el historial completo de todos los pacientes (no existe accesor bulk
+  /// en la base) y lo exporta a un solo CSV. Ignora el filtro/búsqueda activos.
+  Future<void> _exportAll() async {
+    final patients = _patients;
+    if (patients == null || patients.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No hay mediciones para exportar')),
+      );
+      return;
+    }
+    final messenger = ScaffoldMessenger.of(context)
+      ..showSnackBar(const SnackBar(content: Text('Generando exportación…')));
+    final all = <SavedMeasurement>[];
+    for (final pt in patients) {
+      all.addAll(await AnthroDatabase.instance.measurementsForPatient(pt.id));
+    }
+    messenger.hideCurrentSnackBar();
+    if (!mounted) return;
+    await exportAllMeasurements(context, all);
   }
 
   @override
@@ -95,7 +117,7 @@ class _PatientsScreenState extends State<PatientsScreen> {
                       ),
                       SecondaryButton('Importar', onTap: () {}),
                       const SizedBox(width: 8),
-                      PrimaryButton('Exportar', expand: false, onTap: () {}),
+                      PrimaryButton('Exportar', expand: false, onTap: _exportAll),
                     ],
                   ),
                   const SizedBox(height: 12),

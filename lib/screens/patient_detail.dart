@@ -4,6 +4,7 @@ import '../anthro/age.dart';
 import '../anthro/reference.dart';
 import '../db/database.dart';
 import '../db/models.dart';
+import '../export/measurement_export.dart';
 import '../widgets.dart';
 import '../charts.dart';
 import 'charts_screen.dart';
@@ -277,7 +278,9 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                   child: PrimaryButton('Nueva medición', onTap: _openCalculator),
                 ),
                 const SizedBox(width: 10),
-                SecondaryButton('Exportar ficha', onTap: () {}),
+                SecondaryButton('Exportar ficha',
+                    onTap: () => exportPatientFicha(context,
+                        name: widget.patient.name, history: history)),
               ],
             ),
           ),
