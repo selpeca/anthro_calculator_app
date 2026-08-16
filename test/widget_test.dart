@@ -11,6 +11,7 @@ import 'package:anthro_calculator_app/db/database.dart';
 import 'package:anthro_calculator_app/main.dart';
 import 'package:anthro_calculator_app/reference/reference_repository.dart';
 import 'package:anthro_calculator_app/screens/calculator.dart';
+import 'package:anthro_calculator_app/screens/home.dart';
 import 'package:anthro_calculator_app/screens/patient_detail.dart';
 import 'package:anthro_calculator_app/screens/patients.dart';
 import 'package:anthro_calculator_app/theme.dart';
@@ -313,6 +314,57 @@ void main() {
     expect(find.text('−2.300'), findsNWidgets(2));
   });
 
+  testWidgets('la calculadora precarga el paciente y guarda directo en su historial', (tester) async {
+    await AnthroDatabase.instance
+        .saveMeasurement(patientName: 'Sofía Restrepo', input: _sampleInput(), result: _sampleResult());
+    final patients = await AnthroDatabase.instance.listPatients();
+    expect(patients, hasLength(1));
+
+    await tester.pumpWidget(_wrap(
+      CalculatorScreen(patient: patients.first, clock: () => DateTime(2026, 8, 15)),
+    ));
+    await tester.pump();
+
+    // Datos precargados desde la última medición: fechas, peso y talla.
+    expect(find.text('14/05/2024'), findsOneWidget);
+    expect(find.text('15/08/2026'), findsOneWidget);
+    expect(find.text('12.4'), findsOneWidget);
+    expect(find.text('86.5'), findsOneWidget);
+
+    // La edad se deriva de las fechas precargadas.
+    expect(find.text('823 días de vida · 27.0 meses'), findsOneWidget);
+    expect(find.text('2 a 3 m 1 d'), findsOneWidget);
+
+    // Calcular guarda directamente en el paciente, sin diálogo de nombre.
+    await tester.tap(find.widgetWithText(PrimaryButton, 'Calcular indicadores'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Resultados'), findsOneWidget);
+    expect(find.text('Medición guardada en el historial de Sofía Restrepo'), findsOneWidget);
+
+    final dbPatients = await AnthroDatabase.instance.listPatients();
+    expect(dbPatients, hasLength(1));
+    expect(dbPatients.first.measurementCount, 2);
+  });
+
+  testWidgets('"+ Añadir" en la ficha abre la calculadora precargada con el paciente', (tester) async {
+    await AnthroDatabase.instance
+        .saveMeasurement(patientName: 'Sofía Restrepo', input: _sampleInput(), result: _sampleResult());
+    final patients = await AnthroDatabase.instance.listPatients();
+
+    await tester.pumpWidget(_wrap(PatientDetailScreen(patient: patients.first)));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('+ Añadir'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('+ Añadir'));
+    await tester.pumpAndSettle();
+
+    // Se abrió la calculadora con la fecha de nacimiento del paciente.
+    expect(find.text('Cálculo antropométrico'), findsOneWidget);
+    expect(find.text('14/05/2024'), findsOneWidget);
+  });
+
   testWidgets('ThemeTogglePill toggles theme state on tap', (tester) async {
     bool isDark = false;
     await tester.pumpWidget(
@@ -371,5 +423,64 @@ void main() {
     expect(pesoField.controller?.text, '');
     expect(tallaField.controller?.text, '');
     expect(pcField.controller?.text, '');
+  });
+
+  testWidgets('la vista semanal se posiciona en la fecha actual y pagina hacia atrás', (tester) async {
+    const monthNames = [
+      'ene', 'feb', 'mar', 'abr', 'may', 'jun',
+      'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
+    ];
+    DateTime weekStart(DateTime d) {
+      final day = DateTime(d.year, d.month, d.day);
+      return day.subtract(Duration(days: day.weekday - 1));
+    }
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    AnthroInput inputOn(DateTime date) => AnthroInput(
+          birthDate: DateTime(date.year - 2, date.month, date.day),
+          measurementDate: date,
+          sex: Sex.female,
+          weightKg: 12.4,
+          statureCm: 86.5,
+          position: MeasurePosition.standing,
+          headCircumferenceCm: 44.1,
+          standardId: 'oms-2006',
+        );
+
+    // 2 en la semana actual, 1 tres semanas atrás y 1 siete semanas atrás.
+    await AnthroDatabase.instance.saveMeasurement(
+        patientName: 'Ana', input: inputOn(today), result: _sampleResult());
+    await AnthroDatabase.instance.saveMeasurement(
+        patientName: 'Beto', input: inputOn(today), result: _sampleResult());
+    await AnthroDatabase.instance.saveMeasurement(
+        patientName: 'Caro', input: inputOn(today.subtract(const Duration(days: 21))),
+        result: _sampleResult());
+    await AnthroDatabase.instance.saveMeasurement(
+        patientName: 'Dany', input: inputOn(today.subtract(const Duration(days: 49))),
+        result: _sampleResult());
+
+    await tester.pumpWidget(_wrap(const HomeScreen()));
+    await tester.pumpAndSettle();
+
+    // Por defecto se muestra el mes; pasamos a la vista semanal.
+    await tester.tap(find.text('Semana'));
+    await tester.pumpAndSettle();
+
+    final weekly = find.byWidgetPredicate(
+        (w) => w is ListView && w.scrollDirection == Axis.horizontal);
+    expect(weekly, findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    // La semana actual aparece a la derecha con su conteo.
+    final current = weekStart(today);
+    final label = '${current.day} ${monthNames[current.month - 1]}';
+    expect(find.text(label), findsWidgets);
+    expect(find.text('2'), findsOneWidget);
+
+    // Deslizar hacia la izquierda (pasado) carga más semanas sin errores.
+    await tester.fling(weekly, const Offset(-600, 0), 2000);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
   });
 }

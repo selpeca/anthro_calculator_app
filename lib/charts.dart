@@ -159,30 +159,36 @@ class _LmsPainter extends CustomPainter {
 }
 
 /// Z-score progression line chart (design `zChart`). Two series: weight-for-age
-/// and height-for-age across four evaluations.
+/// and height-for-age. With [points] (puntos cronológicos `[label, pesoZ,
+/// tallaZ]`) dibuja la trayectoria real; sin él usa los datos de muestra.
 class ZScoreChart extends StatelessWidget {
-  const ZScoreChart({super.key, this.dark});
+  const ZScoreChart({super.key, this.dark, this.points});
   final bool? dark;
+
+  /// Puntos en orden cronológico (el más antiguo primero). `z` nulo se omite
+  /// de su serie; si todos son `null` el punto se descarta.
+  final List<List<Object?>>? points;
 
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
     return AspectRatio(
       aspectRatio: 344 / 150,
-      child: CustomPaint(painter: _ZPainter(p, dark ?? p.isDark)),
+      child: CustomPaint(painter: _ZPainter(p, dark ?? p.isDark, points)),
     );
   }
 }
 
 class _ZPainter extends CustomPainter {
-  _ZPainter(this.p, this.dark);
+  _ZPainter(this.p, this.dark, this.points);
   final AppPalette p;
   final bool dark;
+  final List<List<Object?>>? points;
 
   static const double vw = 344, vh = 150, pl = 26, pr = 10, pt = 12, pb = 22;
 
-  // [label, weightZ, heightZ]
-  static const pts = <List<Object>>[
+  // [label, weightZ, heightZ] de muestra del diseño.
+  static const defaults = <List<Object>>[
     ['Feb', -0.75, -0.42],
     ['Abr', -0.58, -0.72],
     ['Jun', -0.5, -0.95],
@@ -191,8 +197,14 @@ class _ZPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    final pts = points ?? defaults;
     final sx = size.width / vw, sy = size.height / vh;
-    double xs(int i) => (pl + (i / (pts.length - 1)) * (vw - pl - pr)) * sx;
+    double xs(int i) {
+      final n = pts.length - 1;
+      final t = n == 0 ? 0.5 : i / n;
+      return (pl + t * (vw - pl - pr)) * sx;
+    }
+
     double ys(double z) => (pt + (1 - (z + 3) / 6) * (vh - pt - pb)) * sy;
 
     final grid = dark ? const Color(0xFF24313F) : const Color(0xFFEEF2F5);
@@ -211,11 +223,14 @@ class _ZPainter extends CustomPainter {
 
     void series(int idx, Color col) {
       final path = Path();
+      var hasPrev = false;
       for (int i = 0; i < pts.length; i++) {
-        final z = pts[i][idx] as double;
+        final z = pts[i][idx] as double?;
+        if (z == null) continue;
         final o = Offset(xs(i), ys(z));
-        if (i == 0) {
+        if (!hasPrev) {
           path.moveTo(o.dx, o.dy);
+          hasPrev = true;
         } else {
           path.lineTo(o.dx, o.dy);
         }
@@ -230,7 +245,8 @@ class _ZPainter extends CustomPainter {
           ..strokeJoin = StrokeJoin.round,
       );
       for (int i = 0; i < pts.length; i++) {
-        final z = pts[i][idx] as double;
+        final z = pts[i][idx] as double?;
+        if (z == null) continue;
         final o = Offset(xs(i), ys(z));
         canvas.drawCircle(o, 3.6, Paint()..color = col);
         canvas.drawCircle(
@@ -293,5 +309,18 @@ class _ZPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _ZPainter old) => old.dark != dark || old.p != p;
+  bool shouldRepaint(covariant _ZPainter old) =>
+      old.dark != dark || old.p != p || !_samePoints(old.points, points);
+
+  static bool _samePoints(List<List<Object?>>? a, List<List<Object?>>? b) {
+    if (identical(a, b)) return true;
+    if (a == null || b == null || a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i].length != b[i].length) return false;
+      for (var j = 0; j < a[i].length; j++) {
+        if (a[i][j] != b[i][j]) return false;
+      }
+    }
+    return true;
+  }
 }

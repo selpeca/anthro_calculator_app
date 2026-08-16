@@ -309,7 +309,7 @@ class Footer extends StatelessWidget {
               style: TextStyle(fontSize: 10.5, height: 1.4, color: p.faint),
             ),
             Link(
-              uri: Uri.parse('https://www.linkedin.com/in/selpeca/'),
+              uri: Uri.parse('https://co.linkedin.com/in/selpeca?original_referer=antro_calculator'),
               target: LinkTarget.blank,
               builder: (context, followLink) {
                 return InkWell(

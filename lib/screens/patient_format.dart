@@ -120,3 +120,9 @@ String historyDateLabel(DateTime d) =>
     '${d.day.toString().padLeft(2, '0')} '
     '${_monthsUpper[d.month - 1]} '
     '${(d.year % 100).toString().padLeft(2, '0')}';
+
+/// Etiqueta corta del mes para las gráficas de trayectoria, tipo `'Feb'`.
+String monthChartLabel(DateTime d) {
+  final s = _monthsShort[d.month - 1];
+  return '${s[0].toUpperCase()}${s.substring(1)}';
+}

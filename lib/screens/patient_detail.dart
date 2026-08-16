@@ -35,6 +35,23 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
     setState(() => _history = history);
   }
 
+  /// Abre la calculadora con este paciente ya asociado: precarga su última
+  /// medición y guarda en su historial. Al volver se recarga el historial.
+  Future<void> _openCalculator() async {
+    await Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => CalculatorScreen(patient: widget.patient)));
+    if (mounted) await _load();
+  }
+
+  /// Abre la calculadora en modo edición con una medición del historial
+  /// precargada. Al calcular se actualiza ese registro en lugar de duplicarlo.
+  Future<void> _editMeasurement(SavedMeasurement m) async {
+    await Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) =>
+            CalculatorScreen(patient: widget.patient, measurement: m)));
+    if (mounted) await _load();
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
@@ -70,7 +87,6 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                             style: TextStyle(
                                 fontSize: 15, fontWeight: FontWeight.w600, color: p.onSurface)),
                       ),
-                      _pill(context, 'Editar'),
                     ],
                   ),
                   const SizedBox(height: 4),
@@ -93,26 +109,6 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                               const SizedBox(height: 3),
                               Text(_headerSubtitle(latest),
                                   style: TextStyle(fontSize: 11.5, height: 1.4, color: p.muted)),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: p.okBg,
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                  width: 5,
-                                  height: 5,
-                                  decoration: BoxDecoration(color: p.ok, shape: BoxShape.circle)),
-                              const SizedBox(width: 5),
-                              Text('Local',
-                                  style: TextStyle(
-                                      fontSize: 10.5, fontWeight: FontWeight.w500, color: p.okText)),
                             ],
                           ),
                         ),
@@ -160,7 +156,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const ZScoreChart(dark: true),
+                    ZScoreChart(dark: true, points: _zChartPoints(history)),
                   ],
                 ),
               ),
@@ -179,9 +175,18 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         SectionLabel('Historial de mediciones'),
-                        Text('+ Añadir',
-                            style: TextStyle(
-                                fontSize: 11, fontWeight: FontWeight.w500, color: p.primary)),
+                        InkWell(
+                          onTap: _openCalculator,
+                          borderRadius: BorderRadius.circular(6),
+                          child: Padding(
+                            padding: const EdgeInsets.all(4),
+                            child: Text('+ Añadir',
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                    color: p.primary)),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -204,10 +209,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
             child: Row(
               children: [
                 Expanded(
-                  child: PrimaryButton('Nueva medición', onTap: () {
-                    Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const CalculatorScreen()));
-                  }),
+                  child: PrimaryButton('Nueva medición', onTap: _openCalculator),
                 ),
                 const SizedBox(width: 10),
                 SecondaryButton('Exportar ficha', onTap: () {}),
@@ -229,6 +231,20 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
       ageLabel(latest.ageYears, latest.ageMonths, latest.ageRemDays),
     ];
     return parts.join(' · ');
+  }
+
+  /// Puntos de trayectoria Peso/Edad · Talla/Edad desde el historial real,
+  /// en orden cronológico para que la línea corra de izquierda a derecha.
+  List<List<Object?>> _zChartPoints(List<SavedMeasurement> history) {
+    final points = <List<Object?>>[];
+    for (final m in history.reversed) {
+      final byName = {for (final i in m.indicators) i.name: i};
+      final weightZ = byName['Peso / Edad']?.z;
+      final heightZ = byName['Talla / Edad']?.z;
+      if (weightZ == null && heightZ == null) continue;
+      points.add([monthChartLabel(m.measurementDate), weightZ, heightZ]);
+    }
+    return points;
   }
 
   List<Widget> _zTiles(SavedMeasurement latest) {
@@ -315,42 +331,51 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
   Widget _historyRow(BuildContext context, SavedMeasurement m) {
     final p = AppPalette.of(context);
     final worst = worstIndicator(m);
-    return Container(
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: p.borderSoft)),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 52,
-            child: Text(historyDateLabel(m.measurementDate),
-                style: TextStyle(
-                    fontSize: 10,
-                    height: 1.2,
-                    fontWeight: FontWeight.w600,
-                    fontFamily: 'monospace',
-                    color: p.muted)),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _editMeasurement(m),
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: p.borderSoft)),
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(measurementSummary(m),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 52,
+                child: Text(historyDateLabel(m.measurementDate),
                     style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w500,
-                        fontFeatures: kTabular,
-                        color: p.onSurface)),
-                const SizedBox(height: 2),
-                Text(measurementAgeLabel(m),
-                    style: TextStyle(fontSize: 10.5, height: 1.3, color: p.muted)),
-              ],
-            ),
+                        fontSize: 10,
+                        height: 1.2,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: 'monospace',
+                        color: p.muted)),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(measurementSummary(m),
+                        style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w500,
+                            fontFeatures: kTabular,
+                            color: p.onSurface)),
+                    const SizedBox(height: 2),
+                    Text(measurementAgeLabel(m),
+                        style:
+                            TextStyle(fontSize: 10.5, height: 1.3, color: p.muted)),
+                  ],
+                ),
+              ),
+              StatusChip(zLabelOf(worst.z), worst.status),
+              const SizedBox(width: 6),
+              Icon(Icons.edit_outlined, size: 15, color: p.faint),
+            ],
           ),
-          StatusChip(zLabelOf(worst.z), worst.status),
-        ],
+        ),
       ),
     );
   }

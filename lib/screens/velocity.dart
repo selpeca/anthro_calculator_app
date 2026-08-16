@@ -17,7 +17,6 @@ class VelocityScreen extends StatelessWidget {
       backgroundColor: p.background,
       appBar: const ScreenHeader(
         title: 'Velocidad de crecimiento',
-        subtitle: 'Sofía Restrepo M. · 4 evaluaciones',
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),

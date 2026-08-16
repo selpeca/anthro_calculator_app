@@ -310,6 +310,38 @@ class AnthroDatabase {
     return out;
   }
 
+  /// Fecha de medición de cada medición guardada.
+  ///
+  /// Sirve para consolidar en el tiempo la cantidad de mediciones
+  /// registradas por semana o por mes.
+  Future<List<DateTime>> measurementDates() async {
+    final db = await database;
+    final rows = await db.rawQuery(
+        'SELECT measurement_date FROM measurements ORDER BY measurement_date');
+    return [for (final r in rows) DateTime.parse(r['measurement_date'] as String)];
+  }
+
+  /// Cantidad de mediciones cuya fecha está en el rango [desde, hasta]
+  /// (inclusive). Se usa para paginar la vista semanal sin cargar todo.
+  Future<int> countMeasurementsBetween(DateTime desde, DateTime hasta) async {
+    final db = await database;
+    final rows = await db.rawQuery(
+      'SELECT COUNT(*) AS c FROM measurements '
+      'WHERE measurement_date BETWEEN ? AND ?',
+      [_isoDate(desde), _isoDate(hasta)],
+    );
+    return (rows.first['c'] as int?) ?? 0;
+  }
+
+  /// Fecha de la medición más antigua guardada, o `null` si no hay ninguna.
+  Future<DateTime?> earliestMeasurementDate() async {
+    final db = await database;
+    final rows = await db
+        .rawQuery('SELECT MIN(measurement_date) AS d FROM measurements');
+    final d = rows.first['d'] as String?;
+    return d == null ? null : DateTime.parse(d);
+  }
+
   /// Historial completo de mediciones de un paciente, más reciente primero.
   Future<List<SavedMeasurement>> measurementsForPatient(int patientId) async {
     final db = await database;

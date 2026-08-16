@@ -9,6 +9,7 @@ import '../anthro/plausibility.dart';
 import '../anthro/reference.dart';
 import '../reference/reference_repository.dart';
 import '../db/database.dart';
+import '../db/models.dart';
 import 'common.dart';
 import 'results.dart';
 import '../settings.dart';
@@ -17,10 +18,19 @@ import '../settings.dart';
 DateTime _systemNow() => DateTime.now();
 
 class CalculatorScreen extends StatefulWidget {
-  const CalculatorScreen({super.key, this.clock = _systemNow});
+  const CalculatorScreen(
+      {super.key, this.clock = _systemNow, this.patient, this.measurement});
 
   /// Reloj inyectable para pruebas; por defecto la hora real.
   final DateTime Function() clock;
+
+  /// Paciente ya abierto (su ficha). Precarga la edad, sexo y última
+  /// medición, y al calcular guarda directamente en su historial.
+  final SavedPatient? patient;
+
+  /// Medición del historial a editar. Al precargarla se activa el guardado y,
+  /// al calcular, se actualiza en su lugar (no se duplica el registro).
+  final SavedMeasurement? measurement;
 
   @override
   State<CalculatorScreen> createState() => _CalculatorScreenState();
@@ -32,7 +42,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   final _pc = TextEditingController();
   final _birth = TextEditingController();
   final _meas = TextEditingController();
-  final RefStandard _ref = RefStandard.oms;
+  RefStandard _ref = RefStandard.oms;
   bool _female = true;
   MeasurePosition _pos = MeasurePosition.standing;
   bool _save = false;
@@ -44,10 +54,28 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     super.initState();
     _today = dateOnly(widget.clock());
     _meas.text = formatDmy(_today);
+    final editing = widget.measurement;
+    final source = editing ?? widget.patient?.latest;
+    if (source != null) {
+      _birth.text = formatDmy(source.birthDate);
+      _female = source.sex == Sex.female;
+      _pos = source.position;
+      _peso.text = _fmtValue(source.weightKg);
+      _talla.text = _fmtValue(source.statureCm);
+      if (source.headCircumferenceCm != null) {
+        _pc.text = _fmtValue(source.headCircumferenceCm!);
+      }
+      if (source.standardId == 'col-2465') _ref = RefStandard.colombia;
+      if (editing != null) _meas.text = formatDmy(editing.measurementDate);
+      _save = true;
+    }
     for (final c in [_peso, _talla, _pc, _birth, _meas]) {
       c.addListener(() => setState(() {}));
     }
   }
+
+  static String _fmtValue(double v) =>
+      v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
 
   @override
   void dispose() {
@@ -168,21 +196,51 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
     int? savedMeasurementId;
     String? savedPatientName;
+    final editing = widget.measurement;
     if (_save) {
-      // Persistir el resultado completo, asociado a un paciente por nombre.
-      final target = await promptPatientName(context);
-      if (target == null || !mounted) return;
-      savedMeasurementId = await AnthroDatabase.instance.saveMeasurement(
-        patientName: target.name,
-        patientId: target.patientId,
-        input: input,
-        result: result,
-      );
-      savedPatientName = target.name;
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Medición guardada en el historial de ${target.name}'),
-      ));
+      if (editing != null) {
+        // Edición desde el historial: se actualiza el registro en su lugar.
+        await AnthroDatabase.instance.updateMeasurement(
+          measurementId: editing.id,
+          patientName: editing.patientName,
+          patientId: editing.patientId,
+          input: input,
+          result: result,
+        );
+        savedMeasurementId = editing.id;
+        savedPatientName = editing.patientName;
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(
+              'Medición actualizada en el historial de ${editing.patientName}'),
+        ));
+      } else {
+        // Con paciente ya abierto se guarda directo en su historial; si no, se
+        // pide/elige el paciente con el diálogo por nombre.
+        final target = widget.patient;
+        String targetName;
+        int? targetId;
+        if (target != null) {
+          targetName = target.name;
+          targetId = target.id;
+        } else {
+          final picked = await promptPatientName(context);
+          if (picked == null || !mounted) return;
+          targetName = picked.name;
+          targetId = picked.patientId;
+        }
+        savedMeasurementId = await AnthroDatabase.instance.saveMeasurement(
+          patientName: targetName,
+          patientId: targetId,
+          input: input,
+          result: result,
+        );
+        savedPatientName = targetName;
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Medición guardada en el historial de $targetName'),
+        ));
+      }
     }
 
     if (!mounted) return;
@@ -214,9 +272,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       backgroundColor: p.background,
       appBar: ScreenHeader(
         title: 'Cálculo antropométrico',
-        subtitle: age == null
-            ? (_female ? 'F' : 'M')
-            : '${_female ? 'F' : 'M'} · ${age.label}',
         statusDot: p.ok,
       ),
       body: Column(
