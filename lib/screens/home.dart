@@ -15,6 +15,7 @@ import 'reference_status.dart';
 import '../settings.dart';
 import 'app_drawer.dart';
 import 'about_dialog.dart';
+import 'feedback_dialog.dart';
 
 /// Home / dashboard (design 1b): branded header, quick action, module grid and
 /// a preview of the patient database (leída de la base local).
@@ -155,6 +156,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
+/// Acciones disponibles en el menú de opciones del encabezado.
+enum _HeaderMenuAction { about, report, suggest }
+
 class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -196,10 +200,36 @@ class _Header extends StatelessWidget {
                     ],
                   ),
                 ),
-                IconButton(
-                  onPressed: () => showAboutAppDialog(context),
-                  icon: const Icon(Icons.info_outline_rounded, color: Colors.white, size: 24),
-                  tooltip: 'Acerca de Anthro Calculator',
+                PopupMenuButton<_HeaderMenuAction>(
+                  icon: const Icon(Icons.more_vert_rounded, color: Colors.white, size: 26),
+                  tooltip: 'Menú de opciones: acerca de la app, reportar un error o sugerir una función',
+                  color: p.surface,
+                  surfaceTintColor: Colors.transparent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(Radii.sheet),
+                    side: BorderSide(color: p.border),
+                  ),
+                  onSelected: (action) {
+                    switch (action) {
+                      case _HeaderMenuAction.about:
+                        showAboutAppDialog(context);
+                        break;
+                      case _HeaderMenuAction.report:
+                        showFeedbackDialog(context, type: FeedbackType.bug);
+                        break;
+                      case _HeaderMenuAction.suggest:
+                        showFeedbackDialog(context, type: FeedbackType.feature);
+                        break;
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    _headerMenuItem(context, _HeaderMenuAction.about,
+                        Icons.info_outline_rounded, 'Acerca de la App'),
+                    _headerMenuItem(context, _HeaderMenuAction.report,
+                        Icons.bug_report_outlined, 'Reportar un error'),
+                    _headerMenuItem(context, _HeaderMenuAction.suggest,
+                        Icons.lightbulb_outline_rounded, 'Sugerir una función'),
+                  ],
                 ),
               ],
             ),
@@ -232,6 +262,33 @@ class _Header extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Elemento del menú desplegable del encabezado.
+  PopupMenuItem<_HeaderMenuAction> _headerMenuItem(
+      BuildContext context, _HeaderMenuAction action, IconData icon,
+      String label) {
+    final p = AppPalette.of(context);
+    return PopupMenuItem<_HeaderMenuAction>(
+      value: action,
+      height: 48,
+      child: Row(
+        children: [
+          Icon(icon, size: 19, color: p.primary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w500,
+                color: p.onSurface,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
