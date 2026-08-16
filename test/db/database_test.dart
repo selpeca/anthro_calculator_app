@@ -231,4 +231,87 @@ void main() {
     expect(await db.measurementsForPatient(ana.id), hasLength(2));
     expect((await db.listPatients()).firstWhere((p) => p.name == 'Mateo').measurementCount, 0);
   });
+
+  group('monitoreo y mantenimiento', () {
+    test('stats reporta conteos, esquema, integridad y fichas vacías', () async {
+      final db = AnthroDatabase.instance;
+      await db.saveMeasurement(
+          patientName: 'Sofía', input: input(), result: result());
+      // Ficha sin mediciones (candidata a limpieza).
+      final raw = await db.database;
+      await raw.insert('patients',
+          {'name': 'Vacío', 'created_at': DateTime.now().toIso8601String()});
+
+      final s = await db.stats();
+      expect(s.patientCount, 2);
+      expect(s.measurementCount, 1);
+      expect(s.indicatorCount, 2);
+      expect(s.emptyPatientCount, 1);
+      expect(s.orphanCount, 0);
+      expect(s.integrityOk, isTrue);
+      expect(s.schemaVersion, 2);
+      expect(s.isHealthy, isTrue);
+      expect(s.earliest, DateTime(2026, 8, 15));
+      expect(s.latest, DateTime(2026, 8, 15));
+    });
+
+    test('deleteEmptyPatients borra solo las fichas sin mediciones', () async {
+      final db = AnthroDatabase.instance;
+      await db.saveMeasurement(
+          patientName: 'Sofía', input: input(), result: result());
+      final raw = await db.database;
+      await raw.insert('patients',
+          {'name': 'Vacío', 'created_at': DateTime.now().toIso8601String()});
+
+      expect(await db.deleteEmptyPatients(), 1);
+      final patients = await db.listPatients();
+      expect(patients, hasLength(1));
+      expect(patients.first.name, 'Sofía');
+      expect((await db.stats()).emptyPatientCount, 0);
+    });
+
+    test('purgeOrphans depura mediciones e indicadores sin relación', () async {
+      final db = AnthroDatabase.instance;
+      final mid = await db.saveMeasurement(
+          patientName: 'Sofía', input: input(), result: result());
+      // Huérfano: se borra la fila del paciente dejando la medición suelta.
+      final raw = await db.database;
+      final pid = (await raw.query('measurements',
+              columns: ['patient_id'], where: 'id = ?', whereArgs: [mid]))
+          .first['patient_id'] as int;
+      await raw.delete('patients', where: 'id = ?', whereArgs: [pid]);
+
+      expect((await db.stats()).orphanMeasurementCount, 1);
+      // Medición huérfana (1) + sus indicadores, ya sueltos (2) = 3.
+      expect(await db.purgeOrphans(), 3);
+      final s = await db.stats();
+      expect(s.measurementCount, 0);
+      expect(s.indicatorCount, 0);
+      expect(s.orphanCount, 0);
+    });
+
+    test('deleteAllData deja la base vacía', () async {
+      final db = AnthroDatabase.instance;
+      await db.saveMeasurement(
+          patientName: 'Sofía', input: input(), result: result());
+      await db.saveMeasurement(
+          patientName: 'Mateo', input: input(), result: result());
+
+      await db.deleteAllData();
+      final s = await db.stats();
+      expect(s.patientCount, 0);
+      expect(s.measurementCount, 0);
+      expect(s.indicatorCount, 0);
+      expect(await db.listPatients(), isEmpty);
+    });
+
+    test('vacuum se ejecuta sin error tras borrar datos', () async {
+      final db = AnthroDatabase.instance;
+      await db.saveMeasurement(
+          patientName: 'Sofía', input: input(), result: result());
+      await db.deleteAllData();
+      await db.vacuum(); // no debe lanzar
+      expect((await db.stats()).measurementCount, 0);
+    });
+  });
 }

@@ -10,6 +10,8 @@
 /// databaseFactoryFfi` (sqflite_common_ffi).
 library;
 
+import 'dart:io';
+
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
@@ -36,6 +38,10 @@ class AnthroDatabase {
 
   Database? _db;
 
+  /// Ruta con la que se abrió la base; se resuelve en `_open` y se reporta en
+  /// [stats] (para mostrar ubicación y tamaño en disco).
+  String? _resolvedPath;
+
   /// Abre (una vez) la base y la reutiliza. Forma explícita para no depender
   /// del análisis de tipos de `??=` sobre un campo anulable.
   Future<Database> get database async {
@@ -51,6 +57,7 @@ class AnthroDatabase {
 
   Future<Database> _open() async {
     final path = overridePath ?? p.join(await _defaultDir(), 'anthro.db');
+    _resolvedPath = path;
     return openDatabase(
       path,
       version: _schemaVersion,
@@ -340,6 +347,121 @@ class AnthroDatabase {
         .rawQuery('SELECT MIN(measurement_date) AS d FROM measurements');
     final d = rows.first['d'] as String?;
     return d == null ? null : DateTime.parse(d);
+  }
+
+  // ── Monitoreo y mantenimiento ────────────────────────────────────────────
+
+  /// Foto del estado de la base para la pantalla de administración: conteos por
+  /// tabla, registros a depurar, integridad, versión de esquema y tamaño en
+  /// disco. Todo en una sola pasada para poder refrescar con un toque.
+  Future<DatabaseStats> stats() async {
+    final db = await database;
+
+    Future<int> count(String sql) async =>
+        Sqflite.firstIntValue(await db.rawQuery(sql)) ?? 0;
+
+    final patients = await count('SELECT COUNT(*) FROM patients');
+    final measurements = await count('SELECT COUNT(*) FROM measurements');
+    final indicators = await count('SELECT COUNT(*) FROM indicators');
+    final emptyPatients = await count(
+      'SELECT COUNT(*) FROM patients pt '
+      'WHERE NOT EXISTS (SELECT 1 FROM measurements m WHERE m.patient_id = pt.id)',
+    );
+    final orphanMeasurements = await count(
+      'SELECT COUNT(*) FROM measurements m '
+      'WHERE NOT EXISTS (SELECT 1 FROM patients pt WHERE pt.id = m.patient_id)',
+    );
+    final orphanIndicators = await count(
+      'SELECT COUNT(*) FROM indicators i '
+      'WHERE NOT EXISTS (SELECT 1 FROM measurements m WHERE m.id = i.measurement_id)',
+    );
+    final version =
+        Sqflite.firstIntValue(await db.rawQuery('PRAGMA user_version')) ?? 0;
+
+    final integrity = await db.rawQuery('PRAGMA integrity_check');
+    final detail = integrity.isEmpty
+        ? 'desconocido'
+        : (integrity.first.values.first?.toString() ?? 'desconocido');
+
+    final range = await db.rawQuery(
+      'SELECT MIN(measurement_date) AS lo, MAX(measurement_date) AS hi '
+      'FROM measurements',
+    );
+    DateTime? parse(Object? v) =>
+        v is String ? DateTime.parse(v) : null;
+
+    return DatabaseStats(
+      patientCount: patients,
+      measurementCount: measurements,
+      indicatorCount: indicators,
+      emptyPatientCount: emptyPatients,
+      orphanMeasurementCount: orphanMeasurements,
+      orphanIndicatorCount: orphanIndicators,
+      schemaVersion: version,
+      sizeBytes: await _databaseFileBytes(),
+      path: _resolvedPath ?? '(sin abrir)',
+      integrityOk: detail == 'ok',
+      integrityDetail: detail,
+      earliest: parse(range.first['lo']),
+      latest: parse(range.first['hi']),
+    );
+  }
+
+  /// Tamaño del archivo `.db` en disco, o 0 si es en memoria / no existe.
+  Future<int> _databaseFileBytes() async {
+    final path = _resolvedPath;
+    if (path == null || path == inMemoryDatabasePath) return 0;
+    final f = File(path);
+    return await f.exists() ? f.length() : 0;
+  }
+
+  /// Elimina las fichas de paciente que no tienen ninguna medición asociada.
+  /// Devuelve cuántas se borraron.
+  Future<int> deleteEmptyPatients() async {
+    final db = await database;
+    return db.delete(
+      'patients',
+      where: 'NOT EXISTS '
+          '(SELECT 1 FROM measurements m WHERE m.patient_id = patients.id)',
+    );
+  }
+
+  /// Depura registros inconsistentes: mediciones sin paciente e indicadores sin
+  /// medición (incluidos los que quedaron sueltos al borrar la medición).
+  /// Devuelve el total de filas eliminadas.
+  Future<int> purgeOrphans() async {
+    final db = await database;
+    return db.transaction((txn) async {
+      final measurements = await txn.delete(
+        'measurements',
+        where: 'NOT EXISTS '
+            '(SELECT 1 FROM patients pt WHERE pt.id = measurements.patient_id)',
+      );
+      final indicators = await txn.delete(
+        'indicators',
+        where: 'NOT EXISTS '
+            '(SELECT 1 FROM measurements m WHERE m.id = indicators.measurement_id)',
+      );
+      return measurements + indicators;
+    });
+  }
+
+  /// Compacta el archivo de la base (`VACUUM`), recuperando el espacio liberado
+  /// por borrados. No puede correr dentro de una transacción.
+  Future<void> vacuum() async {
+    final db = await database;
+    await db.execute('VACUUM');
+  }
+
+  /// Borra todos los pacientes, mediciones e indicadores (deja la base vacía).
+  /// Acción destructiva: la pantalla la protege con confirmación.
+  Future<void> deleteAllData() async {
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.delete('indicators');
+      await txn.delete('measurements');
+      await txn.delete('patients');
+    });
   }
 
   /// Historial completo de mediciones de un paciente, más reciente primero.

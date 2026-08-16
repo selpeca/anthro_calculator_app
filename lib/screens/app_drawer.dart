@@ -5,6 +5,7 @@ import '../main.dart' show themeModeNotifier;
 import '../settings.dart';
 import 'common.dart';
 import 'about_dialog.dart';
+import 'database_status.dart';
 
 /// General application menu drawer, accessible from the home screen and top bars.
 class AppDrawer extends StatelessWidget {
@@ -31,7 +32,7 @@ class AppDrawer extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const BrandMark(size: 48, onCream: false),
+                    const SizedBox(height: 48),
                     ValueListenableBuilder<ThemeMode>(
                       valueListenable: themeModeNotifier,
                       builder: (context, mode, _) {
@@ -180,6 +181,26 @@ class AppDrawer extends StatelessWidget {
                 // ),
 
                 // const SizedBox(height: 18),
+                const ThinDivider(),
+                const SizedBox(height: 14),
+
+                // SECTION: DATOS Y ALMACENAMIENTO
+                const SectionLabel('Datos y almacenamiento'),
+                const SizedBox(height: 8),
+
+                _DrawerTile(
+                  icon: Icons.storage_rounded,
+                  title: 'Base de datos local',
+                  subtitle: 'Monitoreo, indicadores y limpieza',
+                  onTap: () {
+                    final navigator = Navigator.of(context);
+                    navigator.pop(); // Close drawer
+                    navigator.push(MaterialPageRoute(
+                        builder: (_) => const DatabaseStatusScreen()));
+                  },
+                ),
+
+                const SizedBox(height: 14),
                 const ThinDivider(),
                 const SizedBox(height: 14),
 

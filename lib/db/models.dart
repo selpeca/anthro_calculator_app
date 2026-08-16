@@ -104,6 +104,73 @@ class SavedIndicator {
   final String? deficitNote;
 }
 
+/// Foto del estado de la base local para la pantalla de monitoreo y
+/// mantenimiento: conteos por tabla, registros a depurar, integridad y tamaño
+/// en disco. Es un DTO de solo lectura; las acciones de limpieza viven en
+/// `AnthroDatabase`.
+class DatabaseStats {
+  const DatabaseStats({
+    required this.patientCount,
+    required this.measurementCount,
+    required this.indicatorCount,
+    required this.emptyPatientCount,
+    required this.orphanMeasurementCount,
+    required this.orphanIndicatorCount,
+    required this.schemaVersion,
+    required this.sizeBytes,
+    required this.path,
+    required this.integrityOk,
+    required this.integrityDetail,
+    this.earliest,
+    this.latest,
+  });
+
+  /// Fichas de paciente registradas.
+  final int patientCount;
+
+  /// Mediciones guardadas.
+  final int measurementCount;
+
+  /// Indicadores guardados (Z / percentil por medición).
+  final int indicatorCount;
+
+  /// Fichas sin ninguna medición asociada (candidatas a limpieza).
+  final int emptyPatientCount;
+
+  /// Mediciones cuyo paciente ya no existe (inconsistencia).
+  final int orphanMeasurementCount;
+
+  /// Indicadores cuya medición ya no existe (inconsistencia).
+  final int orphanIndicatorCount;
+
+  /// Versión del esquema aplicada en el archivo (`PRAGMA user_version`).
+  final int schemaVersion;
+
+  /// Tamaño del archivo `.db` en disco (0 si es en memoria o no existe).
+  final int sizeBytes;
+
+  /// Ruta absoluta del archivo de la base.
+  final String path;
+
+  /// `PRAGMA integrity_check` devolvió `ok`.
+  final bool integrityOk;
+
+  /// Texto crudo del chequeo de integridad (`ok` o el primer problema).
+  final String integrityDetail;
+
+  /// Fecha de la medición más antigua, o `null` si no hay mediciones.
+  final DateTime? earliest;
+
+  /// Fecha de la medición más reciente, o `null` si no hay mediciones.
+  final DateTime? latest;
+
+  /// Registros huérfanos totales (mediciones + indicadores sin relación).
+  int get orphanCount => orphanMeasurementCount + orphanIndicatorCount;
+
+  /// La base está íntegra y sin registros inconsistentes.
+  bool get isHealthy => integrityOk && orphanCount == 0;
+}
+
 /// Reconstruye la entrada y el resultado del cálculo desde una medición
 /// guardada, para reabrir pantallas (gráficas, resultados) sin recalcular.
 extension SavedMeasurementDomain on SavedMeasurement {
