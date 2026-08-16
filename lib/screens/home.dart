@@ -61,64 +61,20 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: p.background,
       drawer: const AppDrawer(),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _open(context, const CalculatorScreen()),
+        backgroundColor: p.primary,
+        foregroundColor: p.isDark ? p.background : Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+        ),
+        tooltip: 'Nueva medición · paciente → medidas → resultados',
+        child: const Icon(Icons.add_rounded, size: 26),
+      ),
       body: ListView(
         padding: EdgeInsets.zero,
         children: [
           _Header(),
-          Transform.translate(
-            offset: const Offset(0, -10),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: SectionCard(
-                child: Row(
-                  children: [
-                    Container(
-                      width: 42,
-                      height: 42,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: p.primaryTint,
-                        borderRadius: BorderRadius.circular(11),
-                      ),
-                      child: Icon(Icons.add, color: p.primary, size: 22),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Nueva medición rápida',
-                              style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: p.onSurface)),
-                          const SizedBox(height: 2),
-                          Text('3 toques: paciente → medidas → resultados',
-                              style: TextStyle(fontSize: 12, color: p.muted)),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: () => _open(context, const CalculatorScreen()),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-                        decoration: BoxDecoration(
-                          color: p.primary,
-                          borderRadius: BorderRadius.circular(9),
-                        ),
-                        child: Text('Iniciar',
-                            style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: p.isDark ? p.background : Colors.white)),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
           _MedicionesTrendSection(measurementDates: _measurementDates),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
@@ -181,7 +137,8 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           const Footer(),
-          const SizedBox(height: 16),
+          // Espacio para que el FAB no tape el final del contenido.
+          const SizedBox(height: 88),
         ],
       ),
     );
