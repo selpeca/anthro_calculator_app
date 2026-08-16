@@ -1,71 +1,121 @@
 # Anthro Calculator App
 
-Offline-first pediatric anthropometry for clinical use, following the **OMS
-2006/2007** growth standards and Colombia's **Resolución 2465 de 2016**.
+Antropometría pediátrica **offline-first** para uso clínico, según los patrones de
+crecimiento de la **OMS 2006/2007** y la **Resolución 2465 de 2016** de Colombia.
 
-Implemented from the Claude Design project *Anthro OMS Calculator* (design system
-turn 1a → screens). Material 3 with light + dark themes.
+Aplicación Flutter (Material 3, temas claro y oscuro, español por defecto)
+implementada a partir del proyecto de diseño *Anthro OMS Calculator*.
 
-## Screens (`lib/screens/`)
+## Resumen
 
-| File | Design ref | Screen |
-|------|-----------|--------|
-| `splash.dart` | 3a / 3b | Branded splash with offline badge |
-| `home.dart` | 1b | Dashboard: quick action, modules, patient preview |
-| `calculator.dart` | 1c | Data entry — editable birth/measurement dates, live age & IMC, real plausibility, reference & position toggles |
-| `results.dart` | 1d / 2a | Computed per-indicator Z-scores + semaforización legend sheet |
-| `reference_status.dart` | — | Read-only status of installed reference tables |
-| `charts_screen.dart` | 1e | LMS growth curves + quantitative deficit analysis |
-| `velocity.dart` | 1f | Growth velocity between evaluations |
-| `patients.dart` | 1i | Patient database with search & filters |
-| `patient_detail.dart` | 1j | Patient file with measurement history |
+La app calcula la evaluación antropométrica de niñas y niños (0–5 años) a partir
+de sexo, fechas de nacimiento y medición, peso, talla y perímetro cefálico. Con
+esos datos obtiene la edad exacta, el IMC y el **Z-score + percentil** de cada
+indicador contra la referencia LMS de la OMS, con **semaforización** clínica
+(Normal · Riesgo · Agudo/Severo). Todo el cálculo y el almacenamiento ocurren
+en el dispositivo, sin envío a servidores.
 
-## Structure
+**Indicadores calculados** (`computeAnthro`): Peso/Edad, Talla/Edad, Peso/Talla,
+IMC/Edad y Perímetro cefálico/Edad, con el ajuste ±0.7 cm por posición
+(acostado/de pie) y las ventanas de validez por edad de cada uno.
 
-- `theme.dart` — design tokens (`AppPalette` light/dark), `ClinicalStatus` semaphore.
-- `data.dart` — models, sample data, and `Anthro` clinical helpers (IMC, position notes).
-- `widgets.dart` — shared components (cards, chips, segmented control, brand mark…).
-- `charts.dart` — `LmsChart` and `ZScoreChart` `CustomPainter`s.
+**Qué se puede hacer:**
 
-### Anthropometric engine (`lib/anthro/`)
+- **Calcular** una medición con edad e IMC en vivo y coloreado de plausibilidad
+  por campo según la edad.
+- **Ver resultados** por indicador (Z, percentil, clasificación) con leyenda de
+  semaforización.
+- **Graficar** las curvas de crecimiento LMS (bandas ±3 DS) con la trayectoria
+  del paciente y el **análisis cuantitativo de déficit/exceso** frente a cada corte.
+- **Velocidad de crecimiento** entre dos evaluaciones.
+- **Gestionar pacientes**: base local con búsqueda, ficha por paciente e historial
+  de mediciones (crear, actualizar/editar mediciones sin duplicar).
+- **Exportar** mediciones a **CSV** y las curvas de crecimiento a **PDF**, e
+  **importar** mediciones desde CSV (los indicadores se recalculan con el motor).
+- **Mantener la base de datos** local: estado, integridad, tamaño en disco y
+  acciones de limpieza (fichas vacías, huérfanos, VACUUM, borrar todo).
+- **Ajustes**: sistema de unidades (métrico / imperial) y estándar de referencia
+  (OMS 2006 / Resolución 2465).
 
-Real Z-score computation against the WHO 2006 LMS reference (0–5 years):
+## Pantallas (`lib/screens/`)
 
-- `age.dart` — age from birth/measurement dates (`dd/MM/yyyy`), UTC-safe day counting.
-- `lms.dart` — `valueFromLms` / `rawZFromLms` / WHO `restrictedZ` (|Z|>3 flattening) / normal CDF.
-- `reference.dart` — `ReferenceTable` (binary search + linear LMS interpolation) and `GrowthReference`.
-- `indicators.dart` — `computeAnthro`: the five indicators (P/E, T/E, P/T, IMC/E, PC/E), the ±0.7 cm
-  length/height position adjustment, validity windows, and Z → `ClinicalStatus` colouring.
-- `plausibility.dart` — age-aware field colouring (replaces the old fixed thresholds).
+| Archivo | Pantalla |
+|---------|----------|
+| `splash.dart` | Splash con carga de la referencia y sello offline |
+| `home.dart` | Panel: acción rápida, vista previa de pacientes, tendencia de mediciones por semana/mes, menú lateral |
+| `calculator.dart` | Captura de datos — fechas editables, edad e IMC en vivo, plausibilidad real, toggles de referencia y posición |
+| `results.dart` | Z-scores por indicador + hoja de leyenda de semaforización |
+| `charts_screen.dart` | Curvas de crecimiento LMS + análisis cuantitativo de déficit |
+| `growth_curve_view.dart` | Widget compartido de la curva LMS con la trayectoria del paciente (usado por curvas y ficha) |
+| `velocity.dart` | Velocidad de crecimiento entre evaluaciones |
+| `patients.dart` | Base de pacientes con búsqueda |
+| `patient_detail.dart` | Ficha del paciente con historial, tendencia y curva |
+| `reference_status.dart` | Estado (solo lectura) de las tablas de referencia instaladas |
+| `database_status.dart` | Monitoreo y mantenimiento de la base local (SQLite) |
+| `app_drawer.dart` · `about_dialog.dart` | Menú lateral (unidades, base de datos, acerca de) y diálogo de créditos |
 
-### Reference data (`lib/reference/`, `assets/reference/`)
+## Estructura
 
-Offline-first, updatable without recompiling the app:
+- `main.dart` — raíz de la app, `themeModeNotifier`, locale `es`.
+- `theme.dart` — tokens de diseño (`AppPalette` claro/oscuro), semáforo `ClinicalStatus`.
+- `data.dart` — modelos, datos de ejemplo y helpers clínicos `Anthro` (IMC, notas de posición).
+- `settings.dart` — enums `UnitSystem` / `ReferenceStandard` y sus notifiers globales.
+- `widgets.dart` — componentes compartidos (tarjetas, chips, control segmentado, marca…).
+- `charts.dart` — `CustomPainter`s `LmsChart` y `ZScoreChart`.
 
-- **Factory seed** in `assets/reference/` (committed): OMS 2006 LMS tables + Colombia (Res. 2465)
-  classification, so the app calculates correctly on first launch with no network.
-- **Local store** in `<appDocs>/reference/`: imported packages win over the seed. `store.dart` handles
-  loading, resolution, validation (schema, `sha256`, monotonic keys, SD-cut reconstruction ±0.01) and
-  atomic `install`. The import UI is a follow-up; the engine already exists.
-- `store.dart` indexes standards by id; Colombia declares `tablesFrom: oms-2006` (adopts the WHO curves,
-  differs only in wording). The read-only status view is `screens/reference_status.dart`.
+### Motor antropométrico (`lib/anthro/`)
 
-The seed is generated by `tool/generate_reference.py` (dev-only, not shipped): it extracts the `.xlsx`
-links from the WHO indicator pages, parses the expanded z-score tables (stdlib `zipfile`, no openpyxl),
-validates LMS against the published SD columns, and emits the CSV packages + `test/fixtures/who_spot_checks.dart`.
+Cálculo real de Z-score contra la referencia LMS de la OMS 2006 (0–5 años):
 
-The app icon is drawn in code (`BrandMark`); the original logo asset could not be
-retrieved intact through the design API (256 KiB read cap truncated the PNG).
+- `age.dart` — edad a partir de fechas (`dd/MM/yyyy`), conteo de días seguro en UTC.
+- `lms.dart` — `valueFromLms` / `rawZFromLms` / `restrictedZ` de la OMS (aplanado con |Z|>3) / CDF normal.
+- `reference.dart` — `ReferenceTable` (búsqueda binaria + interpolación LMS lineal) y `GrowthReference`.
+- `indicators.dart` — `computeAnthro`: los cinco indicadores, el ajuste ±0.7 cm por posición,
+  las ventanas de validez y el mapeo Z → `ClinicalStatus`.
+- `plausibility.dart` — coloreado de campos según la edad.
+- `growth_curve.dart` — muestreo de las bandas de curva y filas de análisis de déficit (módulo puro).
 
-## Run
+### Persistencia (`lib/db/`)
+
+Base local SQLite (`sqflite`), offline-first. Esquema relacional `patients` (1) →
+`measurements` (N) → `indicators` (N): guarda toda la entrada del cálculo y todo lo
+que muestran los resultados. `database.dart` maneja apertura, migraciones y las
+acciones de mantenimiento; `models.dart` son los DTO de lectura para el historial.
+
+### Exportación e importación (`lib/export/`, `lib/import/`)
+
+- `measurement_export.dart` — CSV de mediciones (armado puro y testeable + hoja de compartir).
+- `measurement_pdf.dart` — PDF con la ficha, el resumen de indicadores y cada curva LMS con su análisis.
+- `measurement_import.dart` — lectura del CSV (mismo formato de exportación); los indicadores se **recalculan**.
+
+### Datos de referencia (`lib/reference/`, `assets/reference/`)
+
+Offline-first y actualizable sin recompilar la app:
+
+- **Semilla de fábrica** en `assets/reference/` (versionada): tablas LMS de la OMS 2006 +
+  clasificación de Colombia (Res. 2465), para calcular correctamente desde el primer arranque sin red.
+- **Almacén local** en `<appDocs>/reference/`: los paquetes importados ganan a la semilla. `store.dart`
+  maneja carga, resolución, validación (esquema, `sha256`, claves monótonas, reconstrucción de cortes SD ±0.01)
+  e `install` atómica. `reference_repository.dart` expone el store cargado de forma síncrona a las pantallas.
+- `store.dart` indexa los estándares por id; Colombia declara `tablesFrom: oms-2006` (adopta las curvas
+  de la OMS y solo difiere en la nomenclatura). La vista de estado es `screens/reference_status.dart`.
+
+La semilla la genera `tool/generate_reference.py` (solo desarrollo, no se distribuye): extrae los `.xlsx`
+de las páginas de indicadores de la OMS, parsea las tablas z-score expandidas (`zipfile` de la stdlib, sin
+openpyxl), valida el LMS contra las columnas SD publicadas y emite los paquetes CSV + `test/fixtures/who_spot_checks.dart`.
+
+El ícono de la app se dibuja en código (`BrandMark`); el logo original no pudo recuperarse íntegro por la
+API de diseño (el tope de lectura de 256 KiB truncaba el PNG).
+
+## Ejecutar
 
 ```bash
 flutter run
 ```
 
-Toggle light/dark from the sun/moon icon in the home header.
+El tema claro/oscuro se alterna desde la cabecera del home.
 
-## Test
+## Pruebas
 
 ```bash
 flutter test
