@@ -333,11 +333,11 @@ class _PatientRow extends StatelessWidget {
   }
 }
 
-/// Unidad de agrupación temporal de la gráfica de pacientes con medición.
+/// Unidad de agrupación temporal de la gráfica de mediciones.
 enum _ChartPeriod { week, month }
 
-/// Dato de una barra: inicio del período (semana o mes) y cantidad de
-/// pacientes cuya primera medición cayó en él.
+/// Dato de una barra: inicio del período (semana o mes) y número de
+/// mediciones registradas en él.
 class _BarDatum {
   const _BarDatum({required this.start, required this.count});
   final DateTime start;
@@ -349,37 +349,30 @@ DateTime _weekStart(DateTime d) {
   return day.subtract(Duration(days: day.weekday - 1));
 }
 
-/// Número de semana calendario ISO 8601: la semana 1 es la que contiene el
-/// primer jueves del año y las semanas empiezan en lunes. Se calcula en UTC
-/// para que los cambios de horario no desplacen el conteo de días.
-int _isoWeekNumber(DateTime d) {
-  final date = DateTime.utc(d.year, d.month, d.day);
-  final dayOfYear = date.difference(DateTime.utc(date.year, 1, 1)).inDays + 1;
-  final week = (dayOfYear - date.weekday + 10) ~/ 7;
-  if (week < 1) return _isoWeeksInYear(date.year - 1);
-  if (week > _isoWeeksInYear(date.year)) return 1;
-  return week;
-}
-
-/// Semanas ISO que tiene un año (52 o 53).
-int _isoWeeksInYear(int year) {
-  int p(int y) => (y + y ~/ 4 - y ~/ 100 + y ~/ 400) % 7;
-  return (p(year) == 4 || p(year - 1) == 3) ? 53 : 52;
-}
-
 const List<String> _monthNames = [
   'ene', 'feb', 'mar', 'abr', 'may', 'jun',
   'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
 ];
 
-/// Techo "bonito" (1·10^n, 2·10^n, 5·10^n…) para escalar el eje Y.
-double _niceCeil(double v) {
-  if (v <= 1) return 1;
-  final exp = math.pow(10, (math.log(v) / math.ln10).floor()).toDouble();
-  final frac = v / exp;
-  final nice = frac <= 1 ? 1 : (frac <= 2 ? 2 : (frac <= 5 ? 5 : 10));
-  return nice * exp;
+/// Eje Y para datos de conteo: escoge techo y paso **enteros** (1, 2, 5, 10…)
+/// de modo que las líneas de la grilla nunca caigan en valores fraccionarios
+/// (evita etiquetas tipo "3 / 5 / 8") y las barras aprovechen todo el alto.
+({int max, int step}) _intAxis(int maxVal) {
+  if (maxVal <= 0) return (max: 1, step: 1);
+  const steps = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000];
+  for (final s in steps) {
+    final intervals = (maxVal / s).ceil();
+    if (intervals <= 5) return (max: s * intervals, step: s);
+  }
+  final s = (maxVal / 5).ceil();
+  return (max: s * 5, step: s);
 }
+
+/// Color de las barras de períodos anteriores (el actual va en primario sólido).
+/// Un tinte claro del primario que funciona en claro y oscuro.
+Color _barTint(AppPalette p) => p.isDark
+    ? p.primary.withValues(alpha: 0.42)
+    : Color.lerp(p.primary, p.surface, 0.62)!;
 
 /// Agrupa las fechas de medición por semana o por mes, llenando los períodos
 /// intermedios con ceros para que la serie sea continua.
@@ -412,8 +405,9 @@ List<_BarDatum> _buildBuckets(
   return out;
 }
 
-/// Tarjeta con la consolidación temporal de mediciones registradas:
-/// total general + gráfica de barras conmutable entre semana y mes.
+/// Tarjeta con la consolidación temporal de mediciones: total general, un
+/// resumen (período actual · promedio · máximo) y una gráfica de barras
+/// conmutable entre semana y mes. Muestra siempre los últimos 5 períodos.
 class _MedicionesTrendSection extends StatefulWidget {
   const _MedicionesTrendSection({required this.measurementDates});
 
@@ -425,147 +419,28 @@ class _MedicionesTrendSection extends StatefulWidget {
 }
 
 class _MedicionesTrendSectionState extends State<_MedicionesTrendSection> {
-  /// Semanas cargadas por página en la vista semanal (lazy).
-  static const _weekPageSize = 5;
-
   _ChartPeriod _period = _ChartPeriod.month;
 
-  /// Semanas cargadas; índice 0 = semana actual (la más reciente).
-  final List<_BarDatum> _weeks = [];
-  final ScrollController _weekController = ScrollController();
-  bool _loadingWeeks = true;
-  bool _loadingOlder = false;
-  bool _noMoreWeeks = false;
-  DateTime? _earliestDate;
-
-  @override
-  void initState() {
-    super.initState();
-    _initWeeks();
-  }
-
-  @override
-  void didUpdateWidget(covariant _MedicionesTrendSection oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.measurementDates != oldWidget.measurementDates) {
-      _weeks.clear();
-      _noMoreWeeks = false;
-      _loadingOlder = false;
-      _initWeeks();
-    }
-  }
-
-  @override
-  void dispose() {
-    _weekController.dispose();
-    super.dispose();
-  }
-
-  /// Carga las primeras 5 semanas (actual + 4 anteriores) desde la BD.
-  Future<void> _initWeeks() async {
-    final now = _weekStart(DateTime.now());
-    final earliest = await AnthroDatabase.instance.earliestMeasurementDate();
-    if (!mounted) return;
-    final list = <_BarDatum>[];
-    var cursor = now;
-    var stop = earliest == null;
-    for (var i = 0; i < _weekPageSize && !stop; i++) {
-      final count = await AnthroDatabase.instance.countMeasurementsBetween(
-          cursor, cursor.add(const Duration(days: 6)));
-      list.add(_BarDatum(start: cursor, count: count));
-      cursor = cursor.subtract(const Duration(days: 7));
-      stop = earliest != null && cursor.isBefore(_weekStart(earliest));
-    }
-    if (!mounted) return;
-    setState(() {
-      _weeks.addAll(list);
-      _earliestDate = earliest;
-      _loadingWeeks = false;
-      // Solo las últimas 5 semanas: no se cargan semanas anteriores.
-      _noMoreWeeks = true;
-    });
-  }
-
-  /// Carga la siguiente página de semanas anteriores (hacia el pasado).
-  Future<void> _loadOlder() async {
-    if (_loadingOlder || _noMoreWeeks || _loadingWeeks) return;
-    if (_earliestDate == null) {
-      setState(() => _noMoreWeeks = true);
-      return;
-    }
-    _loadingOlder = true;
-    final last = _weeks.last.start;
-    var cursor = last.subtract(const Duration(days: 7));
-    final add = <_BarDatum>[];
-    var stop = false;
-    for (var i = 0; i < _weekPageSize; i++) {
-      if (cursor.isBefore(_weekStart(_earliestDate!))) {
-        stop = true;
-        break;
-      }
-      final count = await AnthroDatabase.instance.countMeasurementsBetween(
-          cursor, cursor.add(const Duration(days: 6)));
-      add.add(_BarDatum(start: cursor, count: count));
-      cursor = cursor.subtract(const Duration(days: 7));
-    }
-    if (!mounted) return;
-    setState(() {
-      _weeks.addAll(add);
-      _loadingOlder = false;
-      if (stop) _noMoreWeeks = true;
-    });
-    _maybeFillViewport();
-  }
-
-  /// Si el contenido aún no llena el ancho (y hay más historia), carga la
-  /// siguiente página para que el scroll tenga espacio hacia el pasado.
-  void _maybeFillViewport() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || _loadingOlder || _noMoreWeeks) return;
-      if (!_weekController.hasClients) return;
-      if (_weekController.position.maxScrollExtent <= 0) _loadOlder();
-    });
-  }
-
-  int get _weekMax =>
-      _weeks.fold(0, (m, d) => d.count > m ? d.count : m);
-
-  Widget _buildChart(AppPalette p) {
-    if (_period == _ChartPeriod.week) {
-      if (_loadingWeeks) {
-        return const SizedBox(
-          height: 170,
-          child: Center(
-            child: SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-          ),
-        );
-      }
-      return _WeeklyTrendChart(
-        weeks: _weeks,
-        maxCount: _weekMax,
-        palette: p,
-        loading: _loadingOlder,
-        controller: _weekController,
-        onLoadOlder: _loadOlder,
-      );
-    }
-    final months =
-        _buildBuckets(widget.measurementDates, _ChartPeriod.month, DateTime.now());
-    return _TrendChart(
-      // Solo los últimos 5 meses.
-      data: months.length > 5 ? months.sublist(months.length - 5) : months,
-      period: _ChartPeriod.month,
-    );
+  /// Últimos 5 períodos (semana o mes) hasta hoy, construidos a partir de las
+  /// fechas ya cargadas en memoria (sin ir a la base de datos).
+  List<_BarDatum> get _buckets {
+    final all =
+        _buildBuckets(widget.measurementDates, _period, DateTime.now());
+    return all.length > 5 ? all.sublist(all.length - 5) : all;
   }
 
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
     final total = widget.measurementDates.length;
+    final buckets = _buckets;
+    final isWeek = _period == _ChartPeriod.week;
+    final current = buckets.isEmpty ? 0 : buckets.last.count;
+    final peak = buckets.fold<int>(0, (m, d) => d.count > m ? d.count : m);
+    final avg = buckets.isEmpty
+        ? 0.0
+        : buckets.fold<int>(0, (a, d) => a + d.count) / buckets.length;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
       child: SectionCard(
@@ -587,7 +462,12 @@ class _MedicionesTrendSectionState extends State<_MedicionesTrendSection> {
                                 fontWeight: FontWeight.w600,
                                 color: p.onSurface)),
                         const SizedBox(height: 2),
-                        Text('Cantidad por semana o mes',
+                        Text(
+                            total == 0
+                                ? 'Cantidad por semana o mes'
+                                : (isWeek
+                                    ? 'Últimas 5 semanas'
+                                    : 'Últimos 5 meses'),
                             style: TextStyle(fontSize: 11, color: p.muted)),
                       ],
                     ),
@@ -628,23 +508,45 @@ class _MedicionesTrendSectionState extends State<_MedicionesTrendSection> {
               )
             else ...[
               Padding(
-                padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+                padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+                child: Row(
+                  children: [
+                    _StatTile(
+                        label: isWeek ? 'Esta semana' : 'Este mes',
+                        value: '$current'),
+                    const SizedBox(width: 8),
+                    _StatTile(
+                        label: 'Promedio', value: avg.toStringAsFixed(1)),
+                    const SizedBox(width: 8),
+                    _StatTile(label: 'Máximo', value: '$peak'),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
                 child: SegmentedControl(
                   options: const ['Semana', 'Mes'],
-                  selectedIndex: _period == _ChartPeriod.week ? 0 : 1,
+                  selectedIndex: isWeek ? 0 : 1,
                   onChanged: (i) => setState(() =>
                       _period = i == 0 ? _ChartPeriod.week : _ChartPeriod.month),
                 ),
               ),
-              const SizedBox(height: 14),
-              _buildChart(p),
+              const SizedBox(height: 16),
+              _TrendBarChart(data: buckets, period: _period),
               Padding(
-                padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
-                child: Text(
-                  _period == _ChartPeriod.week
-                      ? 'Mediciones de las últimas 5 semanas.'
-                      : 'Mediciones de los últimos 5 meses.',
-                  style: TextStyle(fontSize: 10.5, height: 1.4, color: p.faint),
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+                child: Row(
+                  children: [
+                    _LegendDot(color: p.primary),
+                    const SizedBox(width: 6),
+                    Text(isWeek ? 'Semana actual' : 'Mes actual',
+                        style: TextStyle(fontSize: 10.5, color: p.faint)),
+                    const SizedBox(width: 14),
+                    _LegendDot(color: _barTint(p)),
+                    const SizedBox(width: 6),
+                    Text('Períodos anteriores',
+                        style: TextStyle(fontSize: 10.5, color: p.faint)),
+                  ],
                 ),
               ),
             ],
@@ -655,22 +557,91 @@ class _MedicionesTrendSectionState extends State<_MedicionesTrendSection> {
   }
 }
 
-/// Gráfica de barras del número de mediciones por período (vista mensual). Si
-/// los períodos no caben en el ancho disponible, la zona se vuelve desplazable.
-class _TrendChart extends StatelessWidget {
-  const _TrendChart({required this.data, required this.period});
+/// Mini-tarjeta de estadística (etiqueta arriba + valor grande) usada en la
+/// fila de resumen sobre la gráfica.
+class _StatTile extends StatelessWidget {
+  const _StatTile({required this.label, required this.value});
 
-  final List<_BarDatum> data;
-  final _ChartPeriod period;
+  final String label;
+  final String value;
 
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    const chartHeight = 170.0;
-    const minSlot = 30.0;
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: p.isDark ? p.surfaceAlt : const Color(0xFFF7F9FB),
+          borderRadius: BorderRadius.circular(Radii.chip),
+          border: Border.all(color: p.borderSoft),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label.toUpperCase(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.3,
+                color: p.muted,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                fontFeatures: kTabular,
+                color: p.onSurface,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Punto/cuadrito de color para la leyenda de la gráfica.
+class _LegendDot extends StatelessWidget {
+  const _LegendDot({required this.color});
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 9,
+      height: 9,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(2),
+      ),
+    );
+  }
+}
+
+/// Gráfica de barras del número de mediciones por período (últimos 5). Eje Y
+/// entero, barra del período actual resaltada en primario sólido y etiqueta de
+/// valor sobre cada barra. Siempre caben 5 barras, así que no hay desplazamiento.
+class _TrendBarChart extends StatelessWidget {
+  const _TrendBarChart({required this.data, required this.period});
+
+  final List<_BarDatum> data;
+  final _ChartPeriod period;
+
+  static const _chartHeight = 172.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
     if (data.isEmpty) {
       return SizedBox(
-        height: chartHeight,
+        height: _chartHeight,
         child: Center(
           child: Text('Sin datos',
               style: TextStyle(fontSize: 11, color: p.faint)),
@@ -678,32 +649,20 @@ class _TrendChart extends StatelessWidget {
       );
     }
     final needsYear = data.first.start.year != data.last.start.year;
-    final labels = [
-      for (final d in data) _labelFor(d.start, needsYear),
-    ];
+    final labels = [for (final d in data) _labelFor(d.start, needsYear)];
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6),
-      child: LayoutBuilder(builder: (context, c) {
-        final n = data.length;
-        final slot = math.max(c.maxWidth / n, minSlot);
-        final chart = SizedBox(
-          width: slot * n,
-          height: chartHeight,
-          child: CustomPaint(
-            painter: _BarChartPainter(
-              counts: [for (final d in data) d.count],
-              labels: labels,
-              slotWidth: slot,
-              palette: p,
-            ),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      child: SizedBox(
+        height: _chartHeight,
+        child: CustomPaint(
+          painter: _TrendBarPainter(
+            counts: [for (final d in data) d.count],
+            labels: labels,
+            currentIndex: data.length - 1,
+            palette: p,
           ),
-        );
-        if (slot * n <= c.maxWidth) return chart;
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: chart,
-        );
-      }),
+        ),
+      ),
     );
   }
 
@@ -715,47 +674,44 @@ class _TrendChart extends StatelessWidget {
   }
 }
 
-class _BarChartPainter extends CustomPainter {
-  const _BarChartPainter({
+class _TrendBarPainter extends CustomPainter {
+  const _TrendBarPainter({
     required this.counts,
     required this.labels,
-    required this.slotWidth,
+    required this.currentIndex,
     required this.palette,
   });
 
   final List<int> counts;
   final List<String> labels;
-  final double slotWidth;
+  final int currentIndex;
   final AppPalette palette;
 
   @override
   void paint(Canvas canvas, Size size) {
-    const topPad = 24.0;
-    const bottomPad = 22.0;
-    const leftPad = 28.0;
-    const rightPad = 8.0;
+    const topPad = 26.0;
+    const bottomPad = 24.0;
+    const leftPad = 26.0;
+    const rightPad = 6.0;
     final plotLeft = leftPad;
     final plotRight = size.width - rightPad;
     final plotTop = topPad;
     final plotBottom = size.height - bottomPad;
     final plotH = plotBottom - plotTop;
+    final plotW = plotRight - plotLeft;
 
-    final maxVal = counts.reduce((a, b) => a > b ? a : b);
-    final niceMax = _niceCeil(maxVal <= 0 ? 1 : maxVal.toDouble());
+    final maxVal = counts.fold<int>(0, (m, c) => c > m ? c : m);
+    final axis = _intAxis(maxVal);
+    final niceMax = axis.max;
 
-    const grid = 4;
-    for (var i = 0; i <= grid; i++) {
-      final val = niceMax * i / grid;
-      final y = plotBottom - plotH * val / niceMax;
-      canvas.drawLine(
-        Offset(plotLeft, y),
-        Offset(plotRight, y),
-        Paint()
-          ..color = palette.borderSoft
-          ..strokeWidth = 1,
-      );
-      if (val != 0) {
-        _drawText(canvas, '${val.round()}',
+    final gridPaint = Paint()
+      ..color = palette.borderSoft
+      ..strokeWidth = 1;
+    for (var v = 0; v <= niceMax; v += axis.step) {
+      final y = plotBottom - plotH * v / niceMax;
+      canvas.drawLine(Offset(plotLeft, y), Offset(plotRight, y), gridPaint);
+      if (v != 0) {
+        _text(canvas, '$v',
             anchor: Offset(plotLeft - 6, y),
             align: TextAlign.right,
             color: palette.faint,
@@ -763,51 +719,57 @@ class _BarChartPainter extends CustomPainter {
       }
     }
 
-    final barW = math.min(slotWidth * 0.48, 20.0);
-    for (var i = 0; i < counts.length; i++) {
-      final cx = plotLeft + slotWidth * i + slotWidth / 2;
+    final n = counts.length;
+    final slot = plotW / n;
+    final barW = math.min(slot * 0.5, 34.0);
+    final tint = _barTint(palette);
+    for (var i = 0; i < n; i++) {
+      final cx = plotLeft + slot * i + slot / 2;
       final count = counts[i];
-      final barH =
-          count == 0 ? 2.5 : math.max(3.0, plotH * count / niceMax);
+      final isCurrent = i == currentIndex;
+      final barH = count == 0 ? 3.0 : math.max(4.0, plotH * count / niceMax);
       final rect = RRect.fromRectAndCorners(
         Rect.fromLTWH(cx - barW / 2, plotBottom - barH, barW, barH),
-        topLeft: const Radius.circular(4),
-        topRight: const Radius.circular(4),
+        topLeft: const Radius.circular(5),
+        topRight: const Radius.circular(5),
       );
-      canvas.drawRRect(
-        rect,
-        Paint()
-          ..shader = LinearGradient(
-            begin: Alignment.bottomCenter,
-            end: Alignment.topCenter,
-            colors: [palette.primaryDark, palette.primary],
-          ).createShader(rect.outerRect),
-      );
+      final paint = Paint();
+      if (count == 0) {
+        paint.color = palette.borderSoft;
+      } else if (isCurrent) {
+        paint.shader = LinearGradient(
+          begin: Alignment.bottomCenter,
+          end: Alignment.topCenter,
+          colors: [palette.primaryDark, palette.primary],
+        ).createShader(rect.outerRect);
+      } else {
+        paint.color = tint;
+      }
+      canvas.drawRRect(rect, paint);
 
       if (count > 0) {
-        _drawText(canvas, '$count',
-            anchor: Offset(cx, plotBottom - barH - 8),
+        _text(canvas, '$count',
+            anchor: Offset(cx, plotBottom - barH - 9),
             align: TextAlign.center,
-            color: palette.primary,
+            color: isCurrent ? palette.primary : palette.muted,
             fontSize: 10,
             bold: true);
       }
     }
 
-    final sampling = slotWidth < 30;
-    final step = sampling ? math.max(1, (counts.length / 6).ceil()) : 1;
-    for (var i = 0; i < counts.length; i++) {
-      if (sampling && i % step != 0 && i != counts.length - 1) continue;
-      final cx = plotLeft + slotWidth * i + slotWidth / 2;
-      _drawText(canvas, labels[i],
-          anchor: Offset(cx, plotBottom + 10),
+    for (var i = 0; i < n; i++) {
+      final cx = plotLeft + slot * i + slot / 2;
+      final isCurrent = i == currentIndex;
+      _text(canvas, labels[i],
+          anchor: Offset(cx, plotBottom + 11),
           align: TextAlign.center,
-          color: palette.muted,
-          fontSize: 9);
+          color: isCurrent ? palette.primary : palette.muted,
+          fontSize: 9.5,
+          bold: isCurrent);
     }
   }
 
-  void _drawText(Canvas canvas, String text,
+  void _text(Canvas canvas, String text,
       {required Offset anchor,
       required TextAlign align,
       required Color color,
@@ -834,263 +796,9 @@ class _BarChartPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _BarChartPainter old) =>
+  bool shouldRepaint(covariant _TrendBarPainter old) =>
       old.counts != counts ||
       old.labels != labels ||
-      old.slotWidth != slotWidth ||
+      old.currentIndex != currentIndex ||
       old.palette != palette;
-}
-
-/// Vista semanal desplazable. El índice 0 (`weeks[0]`) es la semana actual,
-/// así que con `reverse: true` el scroll inicia mostrando la fecha actual y
-/// avanza hacia la izquierda (el pasado) cargando más semanas bajo demanda.
-class _WeeklyTrendChart extends StatelessWidget {
-  const _WeeklyTrendChart({
-    required this.weeks,
-    required this.maxCount,
-    required this.palette,
-    required this.loading,
-    required this.controller,
-    required this.onLoadOlder,
-  });
-
-  final List<_BarDatum> weeks;
-  final int maxCount;
-  final AppPalette palette;
-  final bool loading;
-  final ScrollController controller;
-  final VoidCallback onLoadOlder;
-
-  static const _pageSize = 5;
-  static const _gutterLeft = 28.0;
-  static const _chartHeight = 170.0;
-
-  String _weekLabel(DateTime start) {
-    final now = DateTime.now();
-    final base = '${start.day} ${_monthNames[start.month - 1]}';
-    return start.year == now.year ? base : '$base ${start.year % 100}';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (context, c) {
-      final viewport = math.max(0.0, c.maxWidth - _gutterLeft - 12);
-      final slot = viewport / _pageSize;
-      return SizedBox(
-        height: _chartHeight,
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: CustomPaint(
-                painter: _WeekGridPainter(
-                    maxCount: maxCount, palette: palette),
-              ),
-            ),
-            Positioned.fill(
-              child: NotificationListener<ScrollNotification>(
-                onNotification: (n) {
-                  final m = n.metrics;
-                  final atEnd = m.maxScrollExtent > 0 &&
-                      m.pixels >= m.maxScrollExtent - 24;
-                  if (atEnd) onLoadOlder();
-                  return false;
-                },
-                child: Padding(
-                  padding: const EdgeInsets.only(
-                      left: _gutterLeft, right: 12),
-                  child: ListView.builder(
-                    controller: controller,
-                    scrollDirection: Axis.horizontal,
-                    reverse: true,
-                    itemCount: weeks.length,
-                    itemBuilder: (context, index) {
-                      final d = weeks[index];
-                      return _WeekBar(
-                        count: d.count,
-                        maxCount: maxCount,
-                        slotWidth: slot,
-                        label: _weekLabel(d.start),
-                        weekNumber: _isoWeekNumber(d.start),
-                        isCurrent: index == 0,
-                        palette: palette,
-                      );
-                    },
-                  ),
-                ),
-              ),
-            ),
-            if (loading)
-              const Positioned(
-                left: 8,
-                top: 0,
-                bottom: 0,
-                child: Center(
-                  child: SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      );
-    });
-  }
-}
-
-/// Una semana (barra + valor + etiqueta) en la vista semanal.
-class _WeekBar extends StatelessWidget {
-  const _WeekBar({
-    required this.count,
-    required this.maxCount,
-    required this.slotWidth,
-    required this.label,
-    required this.weekNumber,
-    required this.isCurrent,
-    required this.palette,
-  });
-
-  final int count;
-  final int maxCount;
-  final double slotWidth;
-  final String label;
-  final int weekNumber;
-  final bool isCurrent;
-  final AppPalette palette;
-
-  @override
-  Widget build(BuildContext context) {
-    final p = palette;
-    final frac = maxCount <= 0 ? 0.0 : count / maxCount;
-    return SizedBox(
-      width: slotWidth,
-      child: Column(
-        children: [
-          const SizedBox(height: 6),
-          SizedBox(
-            height: 16,
-            child: Center(
-              child: Text(
-                count > 0 ? '$count' : '',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  fontFeatures: kTabular,
-                  color: count > 0 ? p.primary : p.faint,
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: LayoutBuilder(builder: (context, c) {
-              final h = c.maxHeight;
-              return Align(
-                alignment: Alignment.bottomCenter,
-                child: Container(
-                  width: math.min(slotWidth * 0.5, 44.0),
-                  height:
-                      count == 0 ? 2.5 : math.max(3.0, h * frac),
-                  decoration: BoxDecoration(
-                    borderRadius:
-                        const BorderRadius.vertical(top: Radius.circular(5)),
-                    gradient: LinearGradient(
-                      begin: Alignment.bottomCenter,
-                      end: Alignment.topCenter,
-                      colors: isCurrent
-                          ? [p.primaryDark, p.primary]
-                          : [
-                              p.primaryDark.withValues(alpha: 0.45),
-                              p.primary.withValues(alpha: 0.65),
-                            ],
-                    ),
-                  ),
-                ),
-              );
-            }),
-          ),
-          const SizedBox(height: 6),
-          SizedBox(
-            height: 26,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight:
-                        isCurrent ? FontWeight.w600 : FontWeight.w400,
-                    color: isCurrent ? p.primary : p.muted,
-                  ),
-                ),
-                const SizedBox(height: 1),
-                Text(
-                  'Sem $weekNumber',
-                  style: TextStyle(
-                    fontSize: 8,
-                    fontWeight:
-                        isCurrent ? FontWeight.w600 : FontWeight.w400,
-                    color: isCurrent ? p.primary : p.faint,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Grilla de fondo (líneas horizontales + etiquetas del eje Y) para la vista
-/// semanal. Alineada con las áreas de valor/etiqueta de [_WeekBar].
-class _WeekGridPainter extends CustomPainter {
-  const _WeekGridPainter({required this.maxCount, required this.palette});
-
-  final int maxCount;
-  final AppPalette palette;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const topPad = 22.0;
-    // Coincide con la zona inferior de _WeekBar (gap 6 + etiqueta 26) para que
-    // la línea base (0) quede alineada con la base de las barras.
-    const bottomPad = 32.0;
-    final plotLeft = 28.0;
-    final plotBottom = size.height - bottomPad;
-    final plotH = plotBottom - topPad;
-    final niceMax = _niceCeil(maxCount <= 0 ? 1 : maxCount.toDouble());
-
-    const grid = 4;
-    for (var i = 0; i <= grid; i++) {
-      final val = niceMax * i / grid;
-      final y = plotBottom - plotH * val / niceMax;
-      canvas.drawLine(
-        Offset(plotLeft, y),
-        Offset(size.width, y),
-        Paint()
-          ..color = palette.borderSoft
-          ..strokeWidth = 1,
-      );
-      if (val != 0) {
-        final tp = TextPainter(
-          text: TextSpan(
-            text: '${val.round()}',
-            style: TextStyle(
-              fontSize: 9,
-              color: palette.faint,
-              fontFeatures: kTabular,
-            ),
-          ),
-          textDirection: TextDirection.ltr,
-        )..layout();
-        tp.paint(canvas, Offset(plotLeft - 6 - tp.width, y - tp.height / 2));
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _WeekGridPainter old) =>
-      old.maxCount != maxCount || old.palette != palette;
 }
