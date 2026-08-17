@@ -30,6 +30,11 @@ class GrowthPoint {
   final String? subCallout;
 }
 
+/// Eje X de la curva: edad (rotulada en meses, con la clave en días de vida) o
+/// talla (rotulada y con la clave en cm). Determina la rejilla, los rótulos y el
+/// título del eje horizontal.
+enum ChartXAxis { ageMonths, statureCm }
+
 /// Curva de crecimiento LMS: bandas ±3…±3 DS reales alrededor de la mediana y la
 /// trayectoria del paciente (controles históricos conectados + punto actual
 /// resaltado). Los datos vienen precalculados desde `growth_curve.dart`; este
@@ -43,6 +48,7 @@ class LmsChart extends StatelessWidget {
     required this.xMaxKey,
     required this.yMin,
     required this.yMax,
+    this.xAxis = ChartXAxis.ageMonths,
   });
 
   final List<CurveBand> bands;
@@ -51,6 +57,7 @@ class LmsChart extends StatelessWidget {
   final double xMaxKey;
   final double yMin;
   final double yMax;
+  final ChartXAxis xAxis;
 
   @override
   Widget build(BuildContext context) {
@@ -58,7 +65,8 @@ class LmsChart extends StatelessWidget {
     return AspectRatio(
       aspectRatio: 344 / 236,
       child: CustomPaint(
-        painter: _LmsPainter(p, bands, points, xMinKey, xMaxKey, yMin, yMax),
+        painter:
+            _LmsPainter(p, bands, points, xMinKey, xMaxKey, yMin, yMax, xAxis),
       ),
     );
   }
@@ -72,12 +80,13 @@ const Color _patientLine = Color(0xFFC0392B);
 
 class _LmsPainter extends CustomPainter {
   _LmsPainter(this.p, this.bands, this.points, this.xMinKey, this.xMaxKey,
-      this.yMin, this.yMax);
+      this.yMin, this.yMax, this.xAxis);
 
   final AppPalette p;
   final List<CurveBand> bands;
   final List<GrowthPoint> points;
   final double xMinKey, xMaxKey, yMin, yMax;
+  final ChartXAxis xAxis;
 
   static const double vw = 344, vh = 236, pl = 30, pr = 8, pt = 8, pb = 22;
 
@@ -106,17 +115,31 @@ class _LmsPainter extends CustomPainter {
           align: TextAlign.right, mono: true, vCenter: true);
     }
 
-    // Rejilla vertical + rótulos X en meses.
-    final minMonth = xMinKey / _daysPerMonth;
-    final maxMonth = xMaxKey / _daysPerMonth;
-    final monthStep = _monthTickStep(maxMonth - minMonth);
-    for (var m = (minMonth / monthStep).ceil() * monthStep;
-        m <= maxMonth + 1e-9;
-        m += monthStep) {
-      final x = xs(m * _daysPerMonth);
-      canvas.drawLine(Offset(x, pt * sy), Offset(x, (vh - pb) * sy), vGridPaint);
-      _text(canvas, m.toStringAsFixed(0), Offset(x, (vh - pb + 4) * sy),
-          axisText, 9, align: TextAlign.center, mono: true);
+    // Rejilla vertical + rótulos X (meses de edad o cm de talla según el eje).
+    if (xAxis == ChartXAxis.statureCm) {
+      final cmStep = _niceStep(xMaxKey - xMinKey, 6);
+      for (var c = (xMinKey / cmStep).ceil() * cmStep;
+          c <= xMaxKey + 1e-9;
+          c += cmStep) {
+        final x = xs(c);
+        canvas.drawLine(
+            Offset(x, pt * sy), Offset(x, (vh - pb) * sy), vGridPaint);
+        _text(canvas, c.toStringAsFixed(0), Offset(x, (vh - pb + 4) * sy),
+            axisText, 9, align: TextAlign.center, mono: true);
+      }
+    } else {
+      final minMonth = xMinKey / _daysPerMonth;
+      final maxMonth = xMaxKey / _daysPerMonth;
+      final monthStep = _monthTickStep(maxMonth - minMonth);
+      for (var m = (minMonth / monthStep).ceil() * monthStep;
+          m <= maxMonth + 1e-9;
+          m += monthStep) {
+        final x = xs(m * _daysPerMonth);
+        canvas.drawLine(
+            Offset(x, pt * sy), Offset(x, (vh - pb) * sy), vGridPaint);
+        _text(canvas, m.toStringAsFixed(0), Offset(x, (vh - pb + 4) * sy),
+            axisText, 9, align: TextAlign.center, mono: true);
+      }
     }
 
     // Bandas DS.
@@ -200,7 +223,9 @@ class _LmsPainter extends CustomPainter {
           p.statusColor(only.status), 5.5);
     }
 
-    _text(canvas, 'Edad (meses)', Offset(((vw + pl) / 2) * sx, (vh - 10) * sy),
+    final xTitle =
+        xAxis == ChartXAxis.statureCm ? 'Talla (cm)' : 'Edad (meses)';
+    _text(canvas, xTitle, Offset(((vw + pl) / 2) * sx, (vh - 10) * sy),
         axisText, 9, align: TextAlign.center, weight: FontWeight.w500);
   }
 
@@ -311,7 +336,8 @@ class _LmsPainter extends CustomPainter {
       old.xMinKey != xMinKey ||
       old.xMaxKey != xMaxKey ||
       old.yMin != yMin ||
-      old.yMax != yMax;
+      old.yMax != yMax ||
+      old.xAxis != xAxis;
 }
 
 /// Rasteriza una curva LMS a PNG con el mismo pintor que usa la pantalla
@@ -331,6 +357,7 @@ Future<Uint8List> rasterizeLmsChart({
   required double xMaxKey,
   required double yMin,
   required double yMax,
+  ChartXAxis xAxis = ChartXAxis.ageMonths,
   double logicalWidth = 344,
   double pixelRatio = 3.0,
 }) async {
@@ -342,7 +369,7 @@ Future<Uint8List> rasterizeLmsChart({
   // de la rejilla.
   canvas.drawRect(Rect.fromLTWH(0, 0, logicalWidth, logicalHeight),
       Paint()..color = palette.surface);
-  _LmsPainter(palette, bands, points, xMinKey, xMaxKey, yMin, yMax)
+  _LmsPainter(palette, bands, points, xMinKey, xMaxKey, yMin, yMax, xAxis)
       .paint(canvas, Size(logicalWidth, logicalHeight));
   final picture = recorder.endRecording();
   final image = await picture.toImage(

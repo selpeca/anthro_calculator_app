@@ -34,6 +34,18 @@ double? growthValue(
       IndicatorKind.weightForStature => weightKg,
     };
 
+/// Clave del eje X del indicador [kind]: talla ajustada (cm) en Peso/Talla —
+/// cuya curva se indexa por talla, no por edad— y día de vida en el resto.
+double growthAxisKey(
+  IndicatorKind kind, {
+  required double statureCm,
+  required MeasurePosition position,
+  required int ageDays,
+}) =>
+    kind == IndicatorKind.weightForStature
+        ? adjustedStature(statureCm, position, ageDays)
+        : ageDays.toDouble();
+
 /// Puntos del paciente para el indicador [kind]: controles del [history]
 /// (conectados) + la medición actual ([input]/[result]) resaltada. Solo se
 /// incluyen puntos dentro del rango de la curva [table]; el actual se deduplica
@@ -47,7 +59,7 @@ List<GrowthPoint> buildGrowthPoints({
   int? currentMeasurementId,
 }) {
   final points = <GrowthPoint>[];
-  bool inRange(int d) => d >= table.minKey && d <= table.maxKey;
+  bool inRange(double key) => key >= table.minKey && key <= table.maxKey;
 
   for (final m in history) {
     if (currentMeasurementId != null && m.id == currentMeasurementId) continue;
@@ -58,9 +70,11 @@ List<GrowthPoint> buildGrowthPoints({
         ageDays: m.ageDays,
         bmi: m.bmi,
         headCircumferenceCm: m.headCircumferenceCm);
-    if (v == null || v.isNaN || !inRange(m.ageDays)) continue;
+    final key = growthAxisKey(kind,
+        statureCm: m.statureCm, position: m.position, ageDays: m.ageDays);
+    if (v == null || v.isNaN || !inRange(key)) continue;
     points.add(GrowthPoint(
-      key: m.ageDays.toDouble(),
+      key: key,
       value: v,
       status: _statusOf(m.indicators, kind),
     ));
@@ -73,15 +87,18 @@ List<GrowthPoint> buildGrowthPoints({
       ageDays: result.age.days,
       bmi: result.bmi,
       headCircumferenceCm: result.headCircumferenceCm);
-  final cDays = result.age.days;
-  if (cv != null && !cv.isNaN && inRange(cDays)) {
+  final cKey = growthAxisKey(kind,
+      statureCm: input.statureCm,
+      position: input.position,
+      ageDays: result.age.days);
+  if (cv != null && !cv.isNaN && inRange(cKey)) {
     final ind = _currentIndicatorOf(result, kind);
     points.add(GrowthPoint(
-      key: cDays.toDouble(),
+      key: cKey,
       value: cv,
       status: ind?.status ?? ClinicalStatus.none,
       isCurrent: true,
-      callout: _calloutTitle(kind, cv, result),
+      callout: _calloutTitle(kind, cKey, cv, result),
       subCallout: _calloutSub(ind),
     ));
   }
@@ -104,10 +121,14 @@ Indicator? _currentIndicatorOf(AnthroResult result, IndicatorKind kind) {
   return null;
 }
 
-String _calloutTitle(IndicatorKind kind, double value, AnthroResult result) {
-  final months = result.age.decimalMonths.toStringAsFixed(1);
+String _calloutTitle(
+    IndicatorKind kind, double xKey, double value, AnthroResult result) {
   final unit = unitForIndicator(kind);
-  return '$months m · ${value.toStringAsFixed(1)} $unit';
+  // En Peso/Talla el eje X es la talla (cm); en el resto, la edad en meses.
+  final x = kind == IndicatorKind.weightForStature
+      ? '${xKey.toStringAsFixed(1)} cm'
+      : '${result.age.decimalMonths.toStringAsFixed(1)} m';
+  return '$x · ${value.toStringAsFixed(1)} $unit';
 }
 
 String? _calloutSub(Indicator? ind) {
@@ -167,6 +188,9 @@ class GrowthCurveChart extends StatelessWidget {
       xMaxKey: table.maxKey,
       yMin: yMin,
       yMax: yMax,
+      xAxis: table.axis == ReferenceAxis.statureCm
+          ? ChartXAxis.statureCm
+          : ChartXAxis.ageMonths,
     );
     if (!showLegend) return chart;
 
