@@ -2,8 +2,8 @@
 /// hoja de compartir nativa (share_plus), igual que el CSV.
 ///
 /// El reporte incluye la ficha de la medición, el resumen de indicadores y, por
-/// cada curva disponible (Peso/Edad, Talla/Edad, IMC/Edad y PC/Edad si se
-/// midió), la gráfica LMS con la trayectoria del paciente más su análisis
+/// cada curva disponible (Peso/Edad, Talla/Edad, Peso/Talla, IMC/Edad y PC/Edad
+/// si se midió), la gráfica LMS con la trayectoria del paciente más su análisis
 /// cuantitativo frente a cada corte de DS.
 ///
 /// El armado del documento ([buildChartsPdf]) es independiente de plataforma
@@ -38,6 +38,7 @@ import '../theme.dart';
 const List<({IndicatorKind kind, String label})> _curves = [
   (kind: IndicatorKind.weightForAge, label: 'Peso / Edad'),
   (kind: IndicatorKind.statureForAge, label: 'Talla / Edad'),
+  (kind: IndicatorKind.weightForStature, label: 'Peso / Talla'),
   (kind: IndicatorKind.bmiForAge, label: 'IMC / Edad'),
   (kind: IndicatorKind.headCircumferenceForAge, label: 'Perímetro cefálico / Edad'),
 ];
@@ -190,11 +191,17 @@ Future<List<_CurveSection>> _buildSections({
       xMaxKey: table.maxKey,
       yMin: yMin,
       yMax: yMax,
+      xAxis: table.axis == ReferenceAxis.statureCm
+          ? ChartXAxis.statureCm
+          : ChartXAxis.ageMonths,
       logicalWidth: 344,
       pixelRatio: 3.0,
     );
 
-    final lms = table.lmsAt(result.age.days.toDouble());
+    final lms = table.lmsAt(growthAxisKey(c.kind,
+        statureCm: input.statureCm,
+        position: input.position,
+        ageDays: result.age.days));
     final cv = _currentValue(c.kind, input, result);
     final rows = (lms != null && cv != null && !cv.isNaN)
         ? deficitRows(lms, cv)

@@ -54,6 +54,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
   static const _allTabs = [
     _CurveTab('Peso/Edad', IndicatorKind.weightForAge),
     _CurveTab('Talla/Edad', IndicatorKind.statureForAge),
+    _CurveTab('Peso/Talla', IndicatorKind.weightForStature),
     _CurveTab('IMC/Edad', IndicatorKind.bmiForAge),
     _CurveTab('PC/Edad', IndicatorKind.headCircumferenceForAge),
   ];
@@ -90,6 +91,13 @@ class _ChartsScreenState extends State<ChartsScreen> {
       ageDays: _result.age.days,
       bmi: _result.bmi,
       headCircumferenceCm: _result.headCircumferenceCm);
+
+  /// Clave con la que se consulta la curva del indicador: talla (cm) en
+  /// Peso/Talla —indexada por talla— y día de vida en los indicadores por edad.
+  double _axisKey(IndicatorKind kind) => growthAxisKey(kind,
+      statureCm: _input.statureCm,
+      position: _input.position,
+      ageDays: _result.age.days);
 
   @override
   Widget build(BuildContext context) {
@@ -165,7 +173,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
 
   Widget _analysisCard(BuildContext context, _CurveTab tab, ReferenceTable? table) {
     final p = AppPalette.of(context);
-    final lms = table?.lmsAt(_result.age.days.toDouble());
+    final lms = table?.lmsAt(_axisKey(tab.kind));
     final cv = _currentValue(tab.kind);
     final canShow = lms != null && cv != null && !cv.isNaN;
 
@@ -230,6 +238,10 @@ class _ChartsScreenState extends State<ChartsScreen> {
     // Umbral de la zona sana más cercano: −1 DS si está por debajo, +1 si arriba.
     final riskZ = belowMedian ? -1.0 : 1.0;
     final riskValue = valueFromLms(riskZ, lms);
+    // En Peso/Talla la mediana es la del peso para esa talla, no para esa edad.
+    final atLabel = kind == IndicatorKind.weightForStature
+        ? 'a esta talla'
+        : 'a esta edad';
 
     return Container(
       decoration: BoxDecoration(
@@ -252,8 +264,8 @@ class _ChartsScreenState extends State<ChartsScreen> {
                 style: TextStyle(fontSize: 11.5, height: 1.45, color: p.onPrimaryTint),
                 children: belowMedian
                     ? [
-                        const TextSpan(
-                            text: 'Para alcanzar la mediana a esta edad se requieren '),
+                        TextSpan(
+                            text: 'Para alcanzar la mediana $atLabel se requieren '),
                         TextSpan(
                             text: '+${gainToMedian.abs().toStringAsFixed(2)} $unit',
                             style: const TextStyle(fontWeight: FontWeight.w700)),

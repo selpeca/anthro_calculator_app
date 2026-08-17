@@ -96,6 +96,33 @@ void main() {
     expect(find.textContaining('%'), findsWidgets);
   });
 
+  testWidgets('la pestaña Peso/Talla grafica y analiza con el eje de talla',
+      (tester) async {
+    final ref = ReferenceRepository.reference('oms-2006')!;
+    final input = _input(DateTime(2026, 8, 15)); // 27 m, talla 86.5 cm
+    final result = computeAnthro(input, ref);
+
+    await tester.binding.setSurfaceSize(const Size(800, 2000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(_wrap(ChartsScreen(input: input, result: result)));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Peso/Talla'), findsOneWidget);
+
+    await tester.tap(find.text('Peso/Talla'));
+    await tester.pumpAndSettle();
+
+    // La curva se dibuja y el análisis se computa: si el LMS se buscara con la
+    // edad (días) en vez de la talla (cm), quedaría fuera de rango y aparecería
+    // el aviso "Sin análisis". Que haya porcentaje (fila de la mediana) prueba
+    // que la búsqueda usa la talla.
+    expect(tester.takeException(), isNull);
+    expect(find.byType(LmsChart), findsOneWidget);
+    expect(find.textContaining('Sin análisis'), findsNothing);
+    expect(find.textContaining('%'), findsWidgets);
+  });
+
   testWidgets('oculta la pestaña PC/Edad cuando no se midió perímetro cefálico',
       (tester) async {
     final ref = ReferenceRepository.reference('oms-2006')!;
