@@ -232,6 +232,24 @@ class AnthroDatabase {
     _notifyChanged();
   }
 
+  /// Elimina una medición y sus indicadores asociados.
+  ///
+  /// Las claves foráneas no están activas en la conexión, así que se borran los
+  /// indicadores explícitamente (igual que en [updateMeasurement] y
+  /// [deleteAllData]) para no dejar huérfanos. La ficha del paciente se conserva
+  /// aunque quede sin mediciones; su limpieza vive en la pantalla de base de
+  /// datos ("Eliminar fichas vacías").
+  Future<void> deleteMeasurement(int measurementId) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.delete('indicators',
+          where: 'measurement_id = ?', whereArgs: [measurementId]);
+      await txn.delete('measurements',
+          where: 'id = ?', whereArgs: [measurementId]);
+    });
+    _notifyChanged();
+  }
+
   /// Id del paciente existente con ese nombre, o crea uno nuevo.
   Future<int> _resolvePatientId(DatabaseExecutor txn, String name) async {
     final existing = await txn.query(

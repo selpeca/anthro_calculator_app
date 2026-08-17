@@ -232,6 +232,59 @@ void main() {
     expect((await db.listPatients()).firstWhere((p) => p.name == 'Mateo').measurementCount, 0);
   });
 
+  test('deleteMeasurement borra la medición y sus indicadores, conserva la ficha', () async {
+    final db = AnthroDatabase.instance;
+    final keepId =
+        await db.saveMeasurement(patientName: 'Mateo', input: input(), result: result());
+    final removeId =
+        await db.saveMeasurement(patientName: 'Mateo', input: input(), result: result());
+    final pid = (await db.listPatients()).first.id;
+    expect(await db.measurementsForPatient(pid), hasLength(2));
+
+    await db.deleteMeasurement(removeId);
+
+    final history = await db.measurementsForPatient(pid);
+    expect(history, hasLength(1));
+    expect(history.first.id, keepId);
+
+    // La ficha sigue existiendo (aunque tenga menos mediciones) y no quedan
+    // indicadores huérfanos de la medición borrada.
+    final s = await db.stats();
+    expect(s.patientCount, 1);
+    expect(s.measurementCount, 1);
+    expect(s.indicatorCount, 2); // solo los de la medición conservada
+    expect(s.orphanCount, 0);
+  });
+
+  test('deleteMeasurement de la última medición deja la ficha vacía', () async {
+    final db = AnthroDatabase.instance;
+    final id =
+        await db.saveMeasurement(patientName: 'Ana', input: input(), result: result());
+    await db.deleteMeasurement(id);
+
+    final patients = await db.listPatients();
+    expect(patients, hasLength(1));
+    expect(patients.first.measurementCount, 0);
+    expect(patients.first.latest, isNull);
+    final s = await db.stats();
+    expect(s.measurementCount, 0);
+    expect(s.indicatorCount, 0);
+    expect(s.emptyPatientCount, 1);
+  });
+
+  test('deleteMeasurement notifica revision', () async {
+    final db = AnthroDatabase.instance;
+    final id =
+        await db.saveMeasurement(patientName: 'Ana', input: input(), result: result());
+    var ticks = 0;
+    void listener() => ticks++;
+    db.revision.addListener(listener);
+    addTearDown(() => db.revision.removeListener(listener));
+
+    await db.deleteMeasurement(id);
+    expect(ticks, 1);
+  });
+
   group('monitoreo y mantenimiento', () {
     test('stats reporta conteos, esquema, integridad y fichas vacías', () async {
       final db = AnthroDatabase.instance;

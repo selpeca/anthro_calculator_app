@@ -56,6 +56,44 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
     if (mounted) await _load();
   }
 
+  /// Pide confirmación y elimina una medición del historial. Al borrar recarga
+  /// la lista y avisa con un SnackBar (con opción de deshacer no aplica: la
+  /// acción es definitiva, así que se protege con el diálogo).
+  Future<void> _confirmDeleteMeasurement(SavedMeasurement m) async {
+    final p = AppPalette.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: p.surface,
+        title: const Text('Eliminar medición'),
+        content: Text(
+          'Se eliminará la medición del ${formatDmy(m.measurementDate)} '
+          '(${measurementSummary(m)}). Esta acción no se puede deshacer.',
+          style: TextStyle(fontSize: 13, height: 1.4, color: p.onSurface),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: p.bad),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await AnthroDatabase.instance.deleteMeasurement(m.id);
+    if (!mounted) return;
+    await _load();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(content: Text('Medición eliminada')));
+  }
+
   /// Abre la pantalla completa de curvas de crecimiento con la última medición
   /// como punto actual y todo el historial del paciente superpuesto.
   void _openCharts(SavedMeasurement latest) {
@@ -426,12 +464,68 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                 ),
               ),
               StatusChip(zLabelOf(worst.z), worst.status),
-              const SizedBox(width: 6),
-              Icon(Icons.edit_outlined, size: 15, color: p.faint),
+              _historyRowMenu(context, m),
             ],
           ),
         ),
       ),
     );
   }
+
+  /// Menú de acciones de una fila del historial: editar o eliminar la medición.
+  Widget _historyRowMenu(BuildContext context, SavedMeasurement m) {
+    final p = AppPalette.of(context);
+    return PopupMenuButton<_MeasurementAction>(
+      icon: Icon(Icons.more_vert_rounded, size: 18, color: p.faint),
+      tooltip: 'Opciones de la medición',
+      padding: EdgeInsets.zero,
+      splashRadius: 18,
+      color: p.surface,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Radii.sheet),
+        side: BorderSide(color: p.border),
+      ),
+      onSelected: (action) {
+        switch (action) {
+          case _MeasurementAction.edit:
+            _editMeasurement(m);
+            break;
+          case _MeasurementAction.delete:
+            _confirmDeleteMeasurement(m);
+            break;
+        }
+      },
+      itemBuilder: (context) => [
+        _measurementMenuItem(context, _MeasurementAction.edit,
+            Icons.edit_outlined, 'Editar', p.onSurface),
+        _measurementMenuItem(context, _MeasurementAction.delete,
+            Icons.delete_outline_rounded, 'Eliminar', p.bad),
+      ],
+    );
+  }
+
+  PopupMenuItem<_MeasurementAction> _measurementMenuItem(
+      BuildContext context,
+      _MeasurementAction action,
+      IconData icon,
+      String label,
+      Color color) {
+    return PopupMenuItem<_MeasurementAction>(
+      value: action,
+      height: 44,
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: color),
+          const SizedBox(width: 12),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 13.5, fontWeight: FontWeight.w500, color: color)),
+        ],
+      ),
+    );
+  }
 }
+
+/// Acciones disponibles en el menú de una fila del historial de mediciones.
+enum _MeasurementAction { edit, delete }
